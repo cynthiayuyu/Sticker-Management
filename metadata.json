@@ -1,0 +1,7 @@
+{
+  "name": "L'Atelier de Stickers",
+  "description": "An elegant, French-inspired sticker and emoji management workshop for creators. Organize, name, and preview your 40-piece collections with a minimalist and sophisticated interface.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

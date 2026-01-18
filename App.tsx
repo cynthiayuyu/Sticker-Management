@@ -1,0 +1,379 @@
+
+import React, { useState, useEffect, useMemo } from 'react';
+import { StickerSet, ViewState, CollectionStatus } from './types';
+import { StickerEditor } from './components/StickerEditor';
+import { Button } from './components/Button';
+import { getAllStickerSets, saveStickerSet, saveStickerSets, deleteStickerSet } from './services/storage';
+
+// Sorting helper for Series: English (A-Z) then Chinese
+const sortSeries = (a: string, b: string) => {
+  const isAEnglish = /^[A-Za-z]/.test(a);
+  const isBEnglish = /^[A-Za-z]/.test(b);
+
+  if (isAEnglish && !isBEnglish) return -1;
+  if (!isAEnglish && isBEnglish) return 1;
+
+  if (isAEnglish) {
+    return a.localeCompare(b);
+  } else {
+    return a.localeCompare(b, 'zh-Hant-TW');
+  }
+};
+
+// Collection Card Component
+const CollectionCard = ({ 
+  set, 
+  onClick, 
+  onDelete, 
+  onSwapClick,
+  isSwapMode, 
+  isSelectedForSwap,
+  getStatusLabel, 
+  getStatusColor 
+}: any) => {
+  
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Safety check: if the click originated from a button, ignore it here
+    // This acts as a backup even if stopPropagation fails
+    if ((e.target as HTMLElement).closest('button')) return;
+
+    // If in swap mode, clicking the body should trigger swap
+    if (isSwapMode) {
+      onSwapClick(set.id);
+    } else {
+      onClick(set.id);
+    }
+  };
+
+  return (
+    <div 
+      className={`bg-white p-8 border group transition-all duration-500 cursor-pointer relative flex flex-col h-full
+        ${isSelectedForSwap 
+          ? 'border-[#7D7489] shadow-[0_10px_40px_rgba(125,116,137,0.15)] transform -translate-y-1' 
+          : isSwapMode 
+            ? 'border-[#F3F0EB] hover:border-[#7D7489] opacity-80 hover:opacity-100' 
+            : 'border-[#F3F0EB] hover:border-[#7D7489] hover:shadow-[0_10px_40px_rgba(125,116,137,0.08)]'
+        }
+      `}
+      onClick={handleCardClick}
+    >
+      {/* Swap Selection Indicator Overlay */}
+      {isSwapMode && !isSelectedForSwap && (
+        <div className="absolute inset-0 bg-[#7D7489] opacity-0 group-hover:opacity-5 pointer-events-none transition-opacity"></div>
+      )}
+
+      <div className="flex justify-between items-start mb-8">
+        <div className="flex-1 pr-6">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className={`text-[10px] px-2 py-1 border font-fangsong tracking-wider rounded-sm whitespace-nowrap ${getStatusColor(set.status)}`}>
+              {getStatusLabel(set.status)}
+            </span>
+            
+            {/* Type Label */}
+            <span className="text-[10px] px-2 py-1 border border-[#E5E0D8] text-[#9F97A8] font-fangsong tracking-widest rounded-sm bg-[#F9F8F6] whitespace-nowrap">
+              {set.type === 'Emoji' ? '表情貼' : '貼圖'}
+            </span>
+
+            <span className="text-[10px] text-[#D8D2CB] uppercase tracking-[0.2em] font-cormorant ml-1 truncate max-w-[100px]">{set.series || '—'}</span>
+          </div>
+          <h4 className="text-3xl font-playfair text-[#2C2C2C] leading-tight group-hover:text-[#7D7489] transition-colors mb-2 break-words">
+            {set.title}
+          </h4>
+          <p className="text-sm font-cormorant italic text-[#9F97A8] break-words">{set.enTitle}</p>
+        </div>
+        
+        {/* Actions Container */}
+        <div className="flex flex-col items-end gap-3 z-30 relative shrink-0">
+          {/* Swap Button */}
+          <button 
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onSwapClick(set.id);
+            }}
+            className={`p-2 transition-all duration-300 rounded-full hover:bg-[#F3F0EB] ${isSelectedForSwap ? 'text-[#7D7489] rotate-180 bg-[#F3F0EB]' : 'text-[#F3F0EB] hover:text-[#9F97A8]'}`}
+            title="Swap / Reorder"
+          >
+            <svg width="16" height="16" viewBox="0 0 15 15" fill="none">
+              <path d="M7.5 2C7.77614 2 8 2.22386 8 2.5V12.5C8 12.7761 7.77614 13 7.5 13C7.22386 13 7 12.7761 7 12.5V2.5C7 2.22386 7.22386 2 7.5 2ZM2.5 5.5C2.5 5.22386 2.72386 5 3 5H12C12.2761 5 12.5 5.22386 12.5 5.5C12.5 5.77614 12.2761 6 12 6H3C2.72386 6 2.5 5.77614 2.5 5.5ZM3 9.5C2.72386 9.5 2.5 9.72386 2.5 10C2.5 10.2761 2.72386 10.5 3 10.5H12C12.2761 10.5 12.5 10.2761 12.5 10C12.5 9.72386 12.2761 9.5 12 9.5H3Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
+            </svg>
+          </button>
+          
+          {/* Delete Button */}
+          <button 
+            type="button"
+            onClick={(e) => { 
+              e.preventDefault();
+              e.stopPropagation(); 
+              onDelete(set.id); 
+            }}
+            className="p-2 opacity-0 group-hover:opacity-100 text-[#E5E0D8] hover:text-[#7D7489] hover:bg-[#F3F0EB] rounded-full transition-all cursor-pointer"
+            title="Delete Collection"
+          >
+            <svg width="16" height="16" viewBox="0 0 15 15" fill="none"><path d="M5.5 1C5.22386 1 5 1.22386 5 1.5C5 1.77614 5.22386 2 5.5 2H9.5C9.77614 2 10 1.77614 10 1.5C10 1.22386 9.77614 1 9.5 1H5.5ZM3 3.5C3 3.22386 3.22386 3 3.5 3H11.5C11.7761 3 12 3.22386 12 3.5C12 3.77614 11.7761 4 11.5 4H11V12C11 12.5523 10.5523 13 10 13H5C4.44772 13 4 12.5523 4 12V4H3.5C3.22386 4 3 3.77614 3 3.5ZM5 4V12H10V4H5Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-5 gap-2 mb-8 opacity-40 group-hover:opacity-100 transition-opacity duration-700 flex-1">
+        {set.items.slice(0, 5).map((item: any) => (
+          <div key={item.id} className="aspect-square bg-[#FDFBF7] flex items-center justify-center border border-[#F3F0EB] hover:border-[#E5E0D8]">
+            {item.imageUrl ? <img src={item.imageUrl} className="w-full h-full object-contain p-1" /> : <div className="w-1 h-1 bg-[#E5E0D8] rounded-full"></div>}
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-auto">
+        <div className="flex justify-between items-center text-[10px] font-cormorant text-[#9F97A8] uppercase tracking-[0.2em] pt-5 border-t border-[#F9F8F6] group-hover:border-[#E6E4E9]">
+          <span>{set.itemCount} Éléments</span>
+          <span className="text-[#7D7489] opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-2 group-hover:translate-x-0">
+            {isSwapMode ? (isSelectedForSwap ? 'Selected' : 'Swap Here') : 'Ouvrir'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const App: React.FC = () => {
+  const [sets, setSets] = useState<StickerSet[]>([]);
+  const [view, setView] = useState<ViewState>('LIST');
+  const [activeSetId, setActiveSetId] = useState<string | null>(null);
+  
+  const [filterStatus, setFilterStatus] = useState<CollectionStatus | 'ALL'>('ALL');
+  const [filterSeries, setFilterSeries] = useState<string>('ALL');
+
+  // New state for click-to-swap
+  const [swapSourceId, setSwapSourceId] = useState<string | null>(null);
+
+  // Load data asynchronously on mount
+  useEffect(() => {
+    getAllStickerSets().then(loadedSets => {
+      setSets(loadedSets);
+    });
+  }, []);
+
+  const seriesList = useMemo(() => {
+    const list = Array.from(new Set(sets.map(s => s.series).filter(Boolean)));
+    const sorted = list.sort(sortSeries);
+    return ['ALL', ...sorted];
+  }, [sets]);
+
+  const filteredSets = useMemo(() => {
+    return sets.filter(s => {
+      const matchStatus = filterStatus === 'ALL' || s.status === filterStatus;
+      const matchSeries = filterSeries === 'ALL' || s.series === filterSeries;
+      return matchStatus && matchSeries;
+    });
+  }, [sets, filterStatus, filterSeries]);
+
+  const handleCreateNew = () => {
+    const id = Date.now().toString();
+    
+    // Auto-populate series if currently filtered
+    const defaultSeries = filterSeries !== 'ALL' ? filterSeries : '';
+
+    const newSet: StickerSet = {
+      id,
+      order: -1, // Temporary, will be sorted to top
+      title: 'Nouvelle Collection',
+      enTitle: 'New Collection',
+      series: defaultSeries,
+      zhDesc: '',
+      enDesc: '',
+      storeUrl: '',
+      status: 'IDEATION',
+      type: 'Sticker',
+      itemCount: 40,
+      createdAt: Date.now(),
+      items: Array.from({ length: 40 }, (_, i) => ({ 
+        id: `item-${id}-${i}`, 
+        originalOrder: i + 1,
+        name: `Image ${i + 1}` 
+      }))
+    };
+
+    // Update orders: shift everything down
+    const updatedSets = sets.map(s => ({...s, order: (s.order || 0) + 1}));
+    const finalSets = [{...newSet, order: 0}, ...updatedSets];
+
+    // Save all to DB to persist order
+    saveStickerSets(finalSets).then(() => {
+        setSets(finalSets);
+        setActiveSetId(id);
+        setView('EDITOR');
+    });
+  };
+
+  const handleSaveSet = async (updatedSet: StickerSet) => {
+    await saveStickerSet(updatedSet);
+    setSets(prev => prev.map(s => s.id === updatedSet.id ? updatedSet : s));
+    setView('LIST');
+  };
+
+  const handleDeleteSet = async (id: string) => {
+    // Standard confirm dialog
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette collection ?')) {
+      await deleteStickerSet(id);
+      setSets(prev => prev.filter(s => s.id !== id));
+      if (swapSourceId === id) setSwapSourceId(null);
+    }
+  };
+
+  const handleSwapClick = (id: string) => {
+    if (swapSourceId === null) {
+      // Select for swap
+      setSwapSourceId(id);
+    } else if (swapSourceId === id) {
+      // Deselect
+      setSwapSourceId(null);
+    } else {
+      // Perform Swap
+      setSets(prevSets => {
+        const newSets = [...prevSets];
+        const indexA = newSets.findIndex(s => s.id === swapSourceId);
+        const indexB = newSets.findIndex(s => s.id === id);
+
+        if (indexA !== -1 && indexB !== -1) {
+          // Swap logic: We can simply swap them in the array if we rely on array index,
+          // but better to swap their 'order' property and re-sort.
+          
+          // Swap orders
+          const orderA = newSets[indexA].order;
+          const orderB = newSets[indexB].order;
+          newSets[indexA].order = orderB;
+          newSets[indexB].order = orderA;
+
+          // Re-sort the array based on order
+          const sortedSets = newSets.sort((a, b) => a.order - b.order);
+          
+          // Save to DB
+          saveStickerSets(sortedSets);
+          
+          return sortedSets;
+        }
+        return prevSets;
+      });
+      setSwapSourceId(null);
+    }
+  };
+
+  const getStatusLabel = (status: CollectionStatus) => {
+    switch (status) {
+      case 'IDEATION': return '發想構思';
+      case 'IN_PROGRESS': return '繪製創作';
+      case 'ARCHIVED': return '完稿歸檔';
+    }
+  };
+
+  const getStatusColor = (status: CollectionStatus) => {
+    switch (status) {
+      case 'IDEATION': return 'bg-[#F0EFEC] text-[#9F97A8] border-[#E5E0D8]';
+      case 'IN_PROGRESS': return 'bg-[#F3F0F5] text-[#7D7489] border-[#E6E4E9]';
+      case 'ARCHIVED': return 'bg-[#4A4543] text-[#FDFBF7] border-[#4A4543]';
+      default: return '';
+    }
+  };
+
+  const activeSet = sets.find(s => s.id === activeSetId);
+
+  if (view === 'EDITOR' && activeSet) {
+    return (
+      <StickerEditor 
+        set={activeSet} 
+        allSeries={seriesList.filter(s => s !== 'ALL')}
+        onSave={handleSaveSet} 
+        onBack={() => setView('LIST')} 
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen pb-24 border-t-4 border-[#7D7489]">
+      <header className="pt-24 pb-16 px-8 text-center">
+        <h1 className="text-xs uppercase tracking-[0.5em] text-[#9F97A8] font-cormorant mb-6">Maison de Création</h1>
+        <h2 className="text-7xl md:text-9xl font-pinyon text-[#2C2C2C] tracking-tight mb-4">L'Atelier</h2>
+        <div className="text-sm font-cormorant italic text-[#7D7489]">Stickers & Emojis Manager</div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-6 mt-12">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16 px-4">
+          <div className="flex flex-wrap justify-center items-center gap-6 md:gap-8">
+            <div className="flex items-center gap-4">
+               <span className="text-[10px] font-cormorant uppercase tracking-[0.2em] text-[#D8D2CB]">Filtre</span>
+               <div className="flex gap-4">
+                {['ALL', 'IDEATION', 'IN_PROGRESS', 'ARCHIVED'].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setFilterStatus(s as any)}
+                    className={`w-4 h-4 rounded-full transition-all border border-transparent ${
+                      filterStatus === s 
+                      ? 'bg-[#7D7489] scale-125 shadow-md' 
+                      : (s === 'ALL' ? 'bg-[#E5E0D8]' : getStatusColor(s as CollectionStatus).split(' ')[0]) + ' hover:opacity-80'
+                    }`}
+                    title={s === 'ALL' ? '全部' : getStatusLabel(s as CollectionStatus)}
+                  />
+                ))}
+               </div>
+            </div>
+
+            <div className="h-px w-8 bg-[#E5E0D8] hidden md:block"></div>
+
+            <select 
+              value={filterSeries}
+              onChange={(e) => setFilterSeries(e.target.value)}
+              className="bg-transparent border-b border-[#E5E0D8] text-sm font-fangsong py-1 focus:outline-none focus:border-[#7D7489] text-[#7D7489] cursor-pointer min-w-[120px]"
+            >
+              <option value="ALL">Toutes les Séries</option>
+              {seriesList.filter(s => s !== 'ALL').map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {swapSourceId && (
+              <span className="text-xs text-[#7D7489] font-fangsong animate-pulse">
+                請選擇另一個項目進行交換...
+              </span>
+            )}
+            <Button onClick={handleCreateNew} variant="outline" className="tracking-[0.2em] text-sm hover:bg-[#F3F0F5]">
+              + Créer
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-16">
+          {filteredSets.map(set => (
+            <CollectionCard 
+              key={set.id}
+              set={set}
+              onClick={(id: string) => { setActiveSetId(id); setView('EDITOR'); }}
+              onDelete={handleDeleteSet}
+              onSwapClick={handleSwapClick}
+              isSwapMode={swapSourceId !== null}
+              isSelectedForSwap={swapSourceId === set.id}
+              getStatusLabel={getStatusLabel}
+              getStatusColor={getStatusColor}
+            />
+          ))}
+
+          {filteredSets.length === 0 && (
+            <div className="col-span-full py-40 text-center">
+              <div className="w-16 h-px bg-[#E5E0D8] mx-auto mb-6"></div>
+              <p className="font-playfair italic text-[#D8D2CB] text-3xl">La collection est vide.</p>
+            </div>
+          )}
+        </div>
+      </main>
+
+      <footer className="mt-32 border-t border-[#E5E0D8] py-12 text-center bg-[#FDFBF7]">
+        <div className="font-playfair italic text-[#D8D2CB] text-xl">L'Atelier</div>
+        <div className="text-[10px] uppercase tracking-[0.3em] text-[#7D7489] mt-2 font-cormorant">
+          Digital Stationery v3.3
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default App;
