@@ -1,9 +1,9 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { StickerSet, ViewState, CollectionStatus } from './types';
 import { StickerEditor } from './components/StickerEditor';
 import { Button } from './components/Button';
-import { getAllStickerSets, saveStickerSet, saveStickerSets, deleteStickerSet } from './services/storage';
+import { getAllStickerSets, saveStickerSet, saveStickerSets, deleteStickerSet, clearAllStickerSets } from './services/storage';
 
 // Sorting helper for Series: English (A-Z) then Chinese
 const sortSeries = (a: string, b: string) => {
@@ -104,6 +104,7 @@ const CollectionCard = ({
           <button 
             type="button"
             onClick={(e) => { 
+              // Critical: Stop propagation first to prevent opening the editor
               e.preventDefault();
               e.stopPropagation(); 
               onDelete(set.id); 
@@ -146,6 +147,9 @@ const App: React.FC = () => {
 
   // New state for click-to-swap
   const [swapSourceId, setSwapSourceId] = useState<string | null>(null);
+
+  // File input ref for import
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load data asynchronously on mount
   useEffect(() => {
@@ -259,6 +263,86 @@ const App: React.FC = () => {
     }
   };
 
+  // --- Export / Import Logic ---
+
+  const handleExport = async () => {
+    try {
+      const allData = await getAllStickerSets();
+      const jsonString = JSON.stringify(allData, null, 2);
+      const blob = new Blob([jsonString], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `atelier-backup-${dateStr}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Export failed", err);
+      alert("匯出失敗，請稍後再試。");
+    }
+  };
+
+  const handleImportClick = () => {
+    // Ensure value is reset so onChange fires even if same file is selected
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    fileInputRef.current?.click();
+  };
+
+  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        const content = e.target?.result as string;
+        if (!content) {
+            alert("檔案讀取錯誤（內容為空）。");
+            return;
+        }
+        
+        const data = JSON.parse(content);
+        
+        if (Array.isArray(data)) {
+           // First Check: Import detected
+           if (window.confirm(`準備匯入 ${data.length} 個貼圖系列。\n\n按「確定」繼續。\n按「取消」放棄操作。`)) {
+              
+              // Second Check: Strategy (Merge or Restore)
+              const shouldClear = window.confirm(
+                `【重要】是否要先清空現有資料？\n\n` + 
+                `按「確定」：清空所有舊資料，完全還原備份 (Restore)。\n` + 
+                `按「取消」：保留舊資料，僅更新或新增項目 (Merge)。`
+              );
+
+              if (shouldClear) {
+                await clearAllStickerSets();
+              }
+
+              if (data.length > 0) {
+                 await saveStickerSets(data as StickerSet[]);
+              }
+              
+              // Refresh data
+              const refreshedSets = await getAllStickerSets();
+              setSets(refreshedSets);
+              
+              const actionText = shouldClear ? '還原' : '合併';
+              alert(`匯入成功！已${actionText} ${data.length} 筆資料。`);
+           }
+        } else {
+          alert("檔案格式錯誤。請確認這是從本應用程式匯出的 JSON 檔案。");
+        }
+      } catch (err) {
+        console.error("Import parsing error", err);
+        alert("匯入失敗：檔案損毀或格式不符。請檢查 console logs 獲取詳細資訊。");
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const getStatusLabel = (status: CollectionStatus) => {
     switch (status) {
       case 'IDEATION': return '發想構思';
@@ -336,6 +420,26 @@ const App: React.FC = () => {
                 請選擇另一個項目進行交換...
               </span>
             )}
+
+            {/* Hidden Import Input */}
+            <input 
+              type="file" 
+              accept=".json" 
+              ref={fileInputRef} 
+              className="hidden" 
+              onChange={handleFileImport}
+            />
+
+            {/* Backup Controls */}
+            <div className="flex items-center gap-2 mr-2 border-r border-[#F3F0EB] pr-4">
+              <Button onClick={handleExport} variant="ghost" size="sm" className="text-[#9F97A8] hover:text-[#7D7489]">
+                匯出
+              </Button>
+              <Button onClick={handleImportClick} variant="ghost" size="sm" className="text-[#9F97A8] hover:text-[#7D7489]">
+                匯入
+              </Button>
+            </div>
+
             <Button onClick={handleCreateNew} variant="outline" className="tracking-[0.2em] text-sm hover:bg-[#F3F0F5]">
               + Créer
             </Button>

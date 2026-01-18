@@ -33,8 +33,8 @@ export const saveStickerSet = async (set: StickerSet): Promise<void> => {
     const store = transaction.objectStore(STORE_NAME);
     const request = store.put(set);
 
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
   });
 };
 
@@ -44,29 +44,24 @@ export const saveStickerSets = async (sets: StickerSet[]): Promise<void> => {
     const transaction = db.transaction([STORE_NAME], 'readwrite');
     const store = transaction.objectStore(STORE_NAME);
     
-    let completed = 0;
-    let errors = false;
-
     if (sets.length === 0) {
       resolve();
       return;
     }
 
     sets.forEach(set => {
-      const request = store.put(set);
-      request.onsuccess = () => {
-        completed++;
-        if (completed === sets.length) resolve();
-      };
-      request.onerror = () => {
-        errors = true;
-      };
+      store.put(set);
     });
 
+    // Critical fix: Only resolve when the entire transaction is complete
     transaction.oncomplete = () => {
-        if (!errors) resolve();
+      resolve();
     };
-    transaction.onerror = () => reject(transaction.error);
+
+    transaction.onerror = (event) => {
+      console.error("Transaction error in saveStickerSets:", transaction.error);
+      reject(transaction.error);
+    };
   });
 };
 
@@ -98,7 +93,20 @@ export const deleteStickerSet = async (id: string): Promise<void> => {
     const store = transaction.objectStore(STORE_NAME);
     const request = store.delete(id);
 
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(request.error);
+  });
+};
+
+export const clearAllStickerSets = async (): Promise<void> => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([STORE_NAME], 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    const request = store.clear();
+
+    // Critical fix: Wait for transaction completion
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(request.error);
   });
 };
