@@ -36,7 +36,7 @@ export const StickerEditor: React.FC<StickerEditorProps> = ({ set, allSeries, on
         const items = [...prev.items];
         const indexA = items.findIndex(i => i.id === selectedItemId);
         const indexB = items.findIndex(i => i.id === id);
-        
+
         if (indexA !== -1 && indexB !== -1) {
           const temp = items[indexA];
           items[indexA] = items[indexB];
@@ -100,19 +100,19 @@ export const StickerEditor: React.FC<StickerEditorProps> = ({ set, allSeries, on
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-16 mb-20">
-        
+
         {/* Left: Project Identity */}
-        <div className="xl:col-span-4 space-y-10">
+        <div className="xl:col-span-6 space-y-10">
           <div>
             <label className="block text-xs uppercase tracking-[0.2em] text-[#9F97A8] mb-3 font-cormorant">Titre du Projet</label>
-            <input 
+            <input
               type="text"
               value={editedSet.title}
               onChange={(e) => setEditedSet(prev => ({ ...prev, title: e.target.value }))}
               className="w-full text-3xl md:text-4xl font-fangsong bg-transparent border-b border-[#E5E0D8] focus:border-[#7D7489] focus:outline-none pb-3 text-[#2C2C2C] placeholder-[#E5E0D8]"
               placeholder="中文標題"
             />
-            <input 
+            <input
               type="text"
               value={editedSet.enTitle}
               onChange={(e) => setEditedSet(prev => ({ ...prev, enTitle: e.target.value }))}
@@ -122,123 +122,123 @@ export const StickerEditor: React.FC<StickerEditorProps> = ({ set, allSeries, on
           </div>
 
           <div className="space-y-6 pt-4">
-             {/* New Type Selector and Status */}
-             <div className="grid grid-cols-2 gap-8">
-                <div>
-                  <label className="block text-xs uppercase tracking-[0.2em] text-[#9F97A8] mb-3 font-cormorant">Type</label>
-                  <select 
-                    value={editedSet.type}
-                    onChange={(e) => setEditedSet(prev => ({ ...prev, type: e.target.value as any }))}
-                    className="w-full text-sm font-fangsong bg-transparent border-b border-[#E5E0D8] py-2 rounded-none focus:outline-none focus:border-[#7D7489] cursor-pointer"
-                  >
-                    <option value="Sticker">貼圖</option>
-                    <option value="Emoji">表情貼</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs uppercase tracking-[0.2em] text-[#9F97A8] mb-3 font-cormorant">Statut</label>
-                  <select 
-                    value={editedSet.status}
-                    onChange={(e) => setEditedSet(prev => ({ ...prev, status: e.target.value as any }))}
-                    className="w-full text-sm font-fangsong bg-transparent border-b border-[#E5E0D8] py-2 rounded-none focus:outline-none focus:border-[#7D7489] cursor-pointer"
-                  >
-                    <option value="IDEATION">發想構思</option>
-                    <option value="IN_PROGRESS">繪製創作</option>
-                    <option value="ARCHIVED">完稿歸檔</option>
-                  </select>
-                </div>
-             </div>
-
-             <div>
-                <label className="block text-xs uppercase tracking-[0.2em] text-[#9F97A8] mb-3 font-cormorant">Quantité</label>
-                <select 
-                  value={editedSet.itemCount}
-                  onChange={(e) => handleCountChange(parseInt(e.target.value))}
+            {/* New Type Selector and Status */}
+            <div className="grid grid-cols-2 gap-8">
+              <div>
+                <label className="block text-xs uppercase tracking-[0.2em] text-[#9F97A8] mb-3 font-cormorant">Type</label>
+                <select
+                  value={editedSet.type}
+                  onChange={(e) => setEditedSet(prev => ({ ...prev, type: e.target.value as any }))}
                   className="w-full text-sm font-fangsong bg-transparent border-b border-[#E5E0D8] py-2 rounded-none focus:outline-none focus:border-[#7D7489] cursor-pointer"
                 >
-                  {COUNT_OPTIONS.map(opt => <option key={opt} value={opt}>{opt} Images</option>)}
+                  <option value="Sticker">貼圖</option>
+                  <option value="Emoji">表情貼</option>
                 </select>
-             </div>
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-[0.2em] text-[#9F97A8] mb-3 font-cormorant">Statut</label>
+                <select
+                  value={editedSet.status}
+                  onChange={(e) => setEditedSet(prev => ({ ...prev, status: e.target.value as any }))}
+                  className="w-full text-sm font-fangsong bg-transparent border-b border-[#E5E0D8] py-2 rounded-none focus:outline-none focus:border-[#7D7489] cursor-pointer"
+                >
+                  <option value="IDEATION">發想構思</option>
+                  <option value="IN_PROGRESS">繪製創作</option>
+                  <option value="ARCHIVED">完稿歸檔</option>
+                </select>
+              </div>
+            </div>
 
-             <div>
-                <label className="block text-xs uppercase tracking-[0.2em] text-[#9F97A8] mb-3 font-cormorant">Collection / Série</label>
-                <input 
-                  type="text"
-                  list="series-suggestions"
-                  value={editedSet.series}
-                  onChange={(e) => setEditedSet(prev => ({ ...prev, series: e.target.value }))}
-                  className="w-full text-sm font-fangsong bg-transparent border-b border-[#E5E0D8] py-2 focus:outline-none focus:border-[#7D7489]"
-                  placeholder="未分類"
+            <div>
+              <label className="block text-xs uppercase tracking-[0.2em] text-[#9F97A8] mb-3 font-cormorant">Quantité</label>
+              <select
+                value={editedSet.itemCount}
+                onChange={(e) => handleCountChange(parseInt(e.target.value))}
+                className="w-full text-sm font-fangsong bg-transparent border-b border-[#E5E0D8] py-2 rounded-none focus:outline-none focus:border-[#7D7489] cursor-pointer"
+              >
+                {COUNT_OPTIONS.map(opt => <option key={opt} value={opt}>{opt} Images</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase tracking-[0.2em] text-[#9F97A8] mb-3 font-cormorant">Collection / Série</label>
+              <input
+                type="text"
+                list="series-suggestions"
+                value={editedSet.series}
+                onChange={(e) => setEditedSet(prev => ({ ...prev, series: e.target.value }))}
+                className="w-full text-sm font-fangsong bg-transparent border-b border-[#E5E0D8] py-2 focus:outline-none focus:border-[#7D7489]"
+                placeholder="未分類"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs uppercase tracking-[0.2em] text-[#9F97A8] mb-3 font-cormorant">Lien Boutique</label>
+              <div className="flex items-center gap-2 border-b border-[#E5E0D8] py-1 focus-within:border-[#7D7489] transition-colors">
+                <input
+                  type="url"
+                  value={editedSet.storeUrl}
+                  onChange={(e) => setEditedSet(prev => ({ ...prev, storeUrl: e.target.value }))}
+                  placeholder="https://store.line.me/..."
+                  className="flex-1 text-sm font-cormorant bg-transparent focus:outline-none placeholder-[#E5E0D8]"
                 />
+                {editedSet.storeUrl && (
+                  <button onClick={openStoreUrl} className="text-[#9F97A8] hover:text-[#2C2C2C] px-2">
+                    <span className="text-sm">↗</span>
+                  </button>
+                )}
               </div>
-
-             <div>
-                <label className="block text-xs uppercase tracking-[0.2em] text-[#9F97A8] mb-3 font-cormorant">Lien Boutique</label>
-                <div className="flex items-center gap-2 border-b border-[#E5E0D8] py-1 focus-within:border-[#7D7489] transition-colors">
-                  <input 
-                    type="url"
-                    value={editedSet.storeUrl}
-                    onChange={(e) => setEditedSet(prev => ({ ...prev, storeUrl: e.target.value }))}
-                    placeholder="https://store.line.me/..."
-                    className="flex-1 text-sm font-cormorant bg-transparent focus:outline-none placeholder-[#E5E0D8]"
-                  />
-                  {editedSet.storeUrl && (
-                    <button onClick={openStoreUrl} className="text-[#9F97A8] hover:text-[#2C2C2C] px-2">
-                      <span className="text-sm">↗</span>
-                    </button>
-                  )}
-                </div>
-              </div>
+            </div>
           </div>
         </div>
 
         {/* Right: Description & Actions */}
-        <div className="xl:col-span-8 flex flex-col justify-between pl-0 xl:pl-16 border-l-0 xl:border-l border-[#F3F0EB]">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10">
-              <div className="bg-white p-6 shadow-[0_2px_10px_rgba(125,116,137,0.05)] border border-transparent hover:border-[#E5E0D8] transition-colors">
-                <label className="block text-xs uppercase tracking-[0.2em] text-[#D8D2CB] mb-4 font-cormorant text-center">Description (Chinois)</label>
-                <textarea 
-                  value={editedSet.zhDesc}
-                  onChange={(e) => setEditedSet(prev => ({ ...prev, zhDesc: e.target.value }))}
-                  className="w-full h-32 text-sm font-fangsong bg-transparent border-none p-0 focus:outline-none resize-none leading-relaxed text-center placeholder-[#F3F0EB]"
-                  placeholder="請輸入中文介紹..."
-                />
-              </div>
-              <div className="bg-white p-6 shadow-[0_2px_10px_rgba(125,116,137,0.05)] border border-transparent hover:border-[#E5E0D8] transition-colors">
-                <label className="block text-xs uppercase tracking-[0.2em] text-[#D8D2CB] mb-4 font-cormorant text-center">Description (Anglais)</label>
-                <textarea 
-                  value={editedSet.enDesc}
-                  onChange={(e) => setEditedSet(prev => ({ ...prev, enDesc: e.target.value }))}
-                  className="w-full h-32 text-sm font-cormorant italic bg-transparent border-none p-0 focus:outline-none resize-none leading-relaxed text-center placeholder-[#F3F0EB]"
-                  placeholder="Enter English description..."
-                />
-              </div>
+        <div className="xl:col-span-6 flex flex-col justify-between pl-0 xl:pl-16 border-l-0 xl:border-l border-[#F3F0EB]">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10">
+            <div className="bg-white p-6 shadow-[0_2px_10px_rgba(125,116,137,0.05)] border border-transparent hover:border-[#E5E0D8] transition-colors">
+              <label className="block text-xs uppercase tracking-[0.2em] text-[#D8D2CB] mb-4 font-cormorant text-center">Description (Chinois)</label>
+              <textarea
+                value={editedSet.zhDesc}
+                onChange={(e) => setEditedSet(prev => ({ ...prev, zhDesc: e.target.value }))}
+                className="w-full h-32 text-sm font-fangsong bg-transparent border-none p-0 focus:outline-none resize-none leading-relaxed text-center placeholder-[#F3F0EB]"
+                placeholder="請輸入中文介紹..."
+              />
             </div>
+            <div className="bg-white p-6 shadow-[0_2px_10px_rgba(125,116,137,0.05)] border border-transparent hover:border-[#E5E0D8] transition-colors">
+              <label className="block text-xs uppercase tracking-[0.2em] text-[#D8D2CB] mb-4 font-cormorant text-center">Description (Anglais)</label>
+              <textarea
+                value={editedSet.enDesc}
+                onChange={(e) => setEditedSet(prev => ({ ...prev, enDesc: e.target.value }))}
+                className="w-full h-32 text-sm font-cormorant italic bg-transparent border-none p-0 focus:outline-none resize-none leading-relaxed text-center placeholder-[#F3F0EB]"
+                placeholder="Enter English description..."
+              />
+            </div>
+          </div>
 
-            <div className="flex justify-end items-center gap-6 pt-8 border-t border-[#F3F0EB]">
-               <div className="text-xs text-[#D8D2CB] italic font-cormorant mr-auto hidden md:block">
-                 * Click two items to swap positions
-               </div>
-               <Button onClick={handleSaveClick} variant="primary" disabled={isSaving}>
-                 {isSaving ? 'Enregistrement...' : 'Enregistrer'}
-               </Button>
+          <div className="flex justify-end items-center gap-6 pt-8 border-t border-[#F3F0EB]">
+            <div className="text-xs text-[#D8D2CB] italic font-cormorant mr-auto hidden md:block">
+              * Click two items to swap positions
             </div>
+            <Button onClick={handleSaveClick} variant="primary" disabled={isSaving}>
+              {isSaving ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </div>
         </div>
       </div>
 
       <div className="relative">
         {/* Visual Line */}
         <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#D8D2CB] to-transparent"></div>
-        
+
         <div className="pt-12 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-4 sm:gap-6">
           {editedSet.items.map((item, index) => (
-            <StickerItemCard 
-              key={item.id} 
-              item={item} 
+            <StickerItemCard
+              key={item.id}
+              item={item}
               index={index}
               isSelected={selectedItemId === item.id}
               onSelect={handleItemClick}
-              onUpdate={handleUpdateItem} 
+              onUpdate={handleUpdateItem}
             />
           ))}
         </div>

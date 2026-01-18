@@ -28,7 +28,7 @@ export const StickerItemCard: React.FC<StickerItemCardProps> = ({ item, index, i
     // If clicking the input or the name field, ignore selection
     const target = e.target as HTMLElement;
     if (target.tagName === 'INPUT') return;
-    
+
     // Select the card for swapping
     onSelect(item.id);
   };
@@ -39,38 +39,32 @@ export const StickerItemCard: React.FC<StickerItemCardProps> = ({ item, index, i
   };
 
   return (
-    <div 
+    <div
       onClick={handleCardClick}
-      className={`group relative p-4 transition-all duration-500 cursor-pointer ${
-        isSelected 
-          ? 'bg-white shadow-[0_4px_20px_rgba(125,116,137,0.1)] transform -translate-y-1' 
+      className={`group relative p-4 transition-all duration-500 cursor-pointer ${isSelected
+          ? 'bg-white shadow-[0_4px_20px_rgba(125,116,137,0.1)] transform -translate-y-1'
           : 'bg-transparent hover:bg-white/50'
-      }`}
+        }`}
     >
       {/* Elegant Border Effect for Selected State */}
-      <div className={`absolute inset-0 pointer-events-none transition-all duration-500 border ${
-        isSelected ? 'border-[#7D7489] opacity-40' : 'border-transparent opacity-0'
-      }`}></div>
-      <div className={`absolute inset-1 pointer-events-none transition-all duration-500 border ${
-        isSelected ? 'border-[#E6E4E9]' : 'border-transparent'
-      }`}></div>
+      <div className={`absolute inset-0 pointer-events-none transition-all duration-500 border ${isSelected ? 'border-[#7D7489] opacity-40' : 'border-transparent opacity-0'
+        }`}></div>
+      <div className={`absolute inset-1 pointer-events-none transition-all duration-500 border ${isSelected ? 'border-[#E6E4E9]' : 'border-transparent'
+        }`}></div>
 
       <div className="flex justify-between items-center mb-3">
-        <div className={`text-xs font-cormorant italic tracking-widest transition-colors ${
-          isSelected ? 'text-[#7D7489]' : 'text-[#D8D2CB]'
-        }`}>
-          NO. { (index + 1).toString().padStart(2, '0') }
+        <div className={`text-sm md:text-base font-cormorant italic tracking-widest transition-colors ${isSelected ? 'text-[#7D7489]' : 'text-[#9F97A8]'
+          }`}>
+          NO. {(index + 1).toString().padStart(2, '0')}
         </div>
-        
+
         {/* Selection Indicator */}
-        <div className={`w-2 h-2 rounded-full transition-all duration-500 ${
-          isSelected ? 'bg-[#7D7489]' : 'bg-[#E5E0D8] opacity-0 group-hover:opacity-50'
-        }`}></div>
+        <div className={`w-2 h-2 rounded-full transition-all duration-500 ${isSelected ? 'bg-[#7D7489]' : 'bg-[#E5E0D8] opacity-0 group-hover:opacity-50'
+          }`}></div>
       </div>
-      
-      <div className={`aspect-square w-full mb-4 flex items-center justify-center relative transition-all duration-500 overflow-hidden ${
-        item.imageUrl ? '' : 'bg-[#F9F8F6] border border-dashed border-[#E5E0D8]'
-      }`}>
+
+      <div className={`aspect-square w-full mb-4 flex items-center justify-center relative transition-all duration-500 overflow-hidden ${item.imageUrl ? '' : 'bg-[#F9F8F6] border border-dashed border-[#E5E0D8]'
+        }`}>
         {item.imageUrl ? (
           <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain p-1" />
         ) : (
@@ -78,9 +72,9 @@ export const StickerItemCard: React.FC<StickerItemCardProps> = ({ item, index, i
             <span className="font-cormorant italic text-lg opacity-50">+</span>
           </div>
         )}
-        
+
         {/* Explicit Upload Button/Overlay */}
-        <div 
+        <div
           onClick={triggerUpload}
           className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center z-10"
         >
@@ -89,12 +83,12 @@ export const StickerItemCard: React.FC<StickerItemCardProps> = ({ item, index, i
           </span>
         </div>
 
-        <input 
+        <input
           ref={fileInputRef}
-          type="file" 
+          type="file"
           accept="image/*"
           onChange={handleFileChange}
-          className="hidden" 
+          className="hidden"
         />
       </div>
 

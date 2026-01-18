@@ -21,17 +21,19 @@ const sortSeries = (a: string, b: string) => {
 };
 
 // Collection Card Component
-const CollectionCard = ({ 
-  set, 
-  onClick, 
-  onDelete, 
+const CollectionCard = ({
+  set,
+  onClick,
+  onDelete,
   onSwapClick,
-  isSwapMode, 
+  isSwapMode,
   isSelectedForSwap,
-  getStatusLabel, 
-  getStatusColor 
+  getStatusLabel,
+  getStatusColor
 }: any) => {
-  
+
+  const [isDeleting, setIsDeleting] = React.useState(false);
+
   const handleCardClick = (e: React.MouseEvent) => {
     // Safety check: if the click originated from a button, ignore it here
     // This acts as a backup even if stopPropagation fails
@@ -46,12 +48,12 @@ const CollectionCard = ({
   };
 
   return (
-    <div 
+    <div
       className={`bg-white p-8 border group transition-all duration-500 cursor-pointer relative flex flex-col h-full
-        ${isSelectedForSwap 
-          ? 'border-[#7D7489] shadow-[0_10px_40px_rgba(125,116,137,0.15)] transform -translate-y-1' 
-          : isSwapMode 
-            ? 'border-[#F3F0EB] hover:border-[#7D7489] opacity-80 hover:opacity-100' 
+        ${isSelectedForSwap
+          ? 'border-[#7D7489] shadow-[0_10px_40px_rgba(125,116,137,0.15)] transform -translate-y-1'
+          : isSwapMode
+            ? 'border-[#F3F0EB] hover:border-[#7D7489] opacity-80 hover:opacity-100'
             : 'border-[#F3F0EB] hover:border-[#7D7489] hover:shadow-[0_10px_40px_rgba(125,116,137,0.08)]'
         }
       `}
@@ -68,7 +70,7 @@ const CollectionCard = ({
             <span className={`text-[10px] px-2 py-1 border font-fangsong tracking-wider rounded-sm whitespace-nowrap ${getStatusColor(set.status)}`}>
               {getStatusLabel(set.status)}
             </span>
-            
+
             {/* Type Label */}
             <span className="text-[10px] px-2 py-1 border border-[#E5E0D8] text-[#9F97A8] font-fangsong tracking-widest rounded-sm bg-[#F9F8F6] whitespace-nowrap">
               {set.type === 'Emoji' ? '表情貼' : '貼圖'}
@@ -81,11 +83,11 @@ const CollectionCard = ({
           </h4>
           <p className="text-sm font-cormorant italic text-[#9F97A8] break-words">{set.enTitle}</p>
         </div>
-        
+
         {/* Actions Container */}
         <div className="flex flex-col items-end gap-3 z-30 relative shrink-0">
           {/* Swap Button */}
-          <button 
+          <button
             type="button"
             onClick={(e) => {
               e.preventDefault();
@@ -99,20 +101,39 @@ const CollectionCard = ({
               <path d="M7.5 2C7.77614 2 8 2.22386 8 2.5V12.5C8 12.7761 7.77614 13 7.5 13C7.22386 13 7 12.7761 7 12.5V2.5C7 2.22386 7.22386 2 7.5 2ZM2.5 5.5C2.5 5.22386 2.72386 5 3 5H12C12.2761 5 12.5 5.22386 12.5 5.5C12.5 5.77614 12.2761 6 12 6H3C2.72386 6 2.5 5.77614 2.5 5.5ZM3 9.5C2.72386 9.5 2.5 9.72386 2.5 10C2.5 10.2761 2.72386 10.5 3 10.5H12C12.2761 10.5 12.5 10.2761 12.5 10C12.5 9.72386 12.2761 9.5 12 9.5H3Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
             </svg>
           </button>
-          
+
           {/* Delete Button */}
-          <button 
+          {/* Delete Button with 2-step confirmation */}
+          <button
             type="button"
-            onClick={(e) => { 
-              // Critical: Stop propagation first to prevent opening the editor
+            onClick={(e) => {
               e.preventDefault();
-              e.stopPropagation(); 
-              onDelete(set.id); 
+              e.stopPropagation();
+
+              if (isDeleting) {
+                onDelete(set.id);
+              } else {
+                setIsDeleting(true);
+                // Reset after 3 seconds if not confirmed
+                setTimeout(() => setIsDeleting(false), 3000);
+              }
             }}
-            className="p-2 opacity-0 group-hover:opacity-100 text-[#E5E0D8] hover:text-[#7D7489] hover:bg-[#F3F0EB] rounded-full transition-all cursor-pointer"
-            title="Delete Collection"
+            className={`p-2 rounded-full transition-all cursor-pointer z-40 flex items-center justify-center
+              ${isDeleting
+                ? 'bg-red-50 text-red-500 hover:bg-red-100 opacity-100 w-auto px-3 gap-2'
+                : 'opacity-0 group-hover:opacity-100 text-[#E5E0D8] hover:text-[#7D7489] hover:bg-[#F3F0EB]'
+              }
+            `}
+            title={isDeleting ? "Confirm Delete" : "Delete Collection"}
           >
-            <svg width="16" height="16" viewBox="0 0 15 15" fill="none"><path d="M5.5 1C5.22386 1 5 1.22386 5 1.5C5 1.77614 5.22386 2 5.5 2H9.5C9.77614 2 10 1.77614 10 1.5C10 1.22386 9.77614 1 9.5 1H5.5ZM3 3.5C3 3.22386 3.22386 3 3.5 3H11.5C11.7761 3 12 3.22386 12 3.5C12 3.77614 11.7761 4 11.5 4H11V12C11 12.5523 10.5523 13 10 13H5C4.44772 13 4 12.5523 4 12V4H3.5C3.22386 4 3 3.77614 3 3.5ZM5 4V12H10V4H5Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+            {isDeleting ? (
+              <>
+                <span className="text-xs font-bold">Confirmer ?</span>
+                <svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M5.5 1C5.22386 1 5 1.22386 5 1.5C5 1.77614 5.22386 2 5.5 2H9.5C9.77614 2 10 1.77614 10 1.5C10 1.22386 9.77614 1 9.5 1H5.5ZM3 3.5C3 3.22386 3.22386 3 3.5 3H11.5C11.7761 3 12 3.22386 12 3.5C12 3.77614 11.7761 4 11.5 4H11V12C11 12.5523 10.5523 13 10 13H5C4.44772 13 4 12.5523 4 12V4H3.5C3.22386 4 3 3.77614 3 3.5ZM5 4V12H10V4H5Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+              </>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 15 15" fill="none"><path d="M5.5 1C5.22386 1 5 1.22386 5 1.5C5 1.77614 5.22386 2 5.5 2H9.5C9.77614 2 10 1.77614 10 1.5C10 1.22386 9.77614 1 9.5 1H5.5ZM3 3.5C3 3.22386 3.22386 3 3.5 3H11.5C11.7761 3 12 3.22386 12 3.5C12 3.77614 11.7761 4 11.5 4H11V12C11 12.5523 10.5523 13 10 13H5C4.44772 13 4 12.5523 4 12V4H3.5C3.22386 4 3 3.77614 3 3.5ZM5 4V12H10V4H5Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path></svg>
+            )}
           </button>
         </div>
       </div>
@@ -141,7 +162,7 @@ const App: React.FC = () => {
   const [sets, setSets] = useState<StickerSet[]>([]);
   const [view, setView] = useState<ViewState>('LIST');
   const [activeSetId, setActiveSetId] = useState<string | null>(null);
-  
+
   const [filterStatus, setFilterStatus] = useState<CollectionStatus | 'ALL'>('ALL');
   const [filterSeries, setFilterSeries] = useState<string>('ALL');
 
@@ -154,7 +175,12 @@ const App: React.FC = () => {
   // Load data asynchronously on mount
   useEffect(() => {
     getAllStickerSets().then(loadedSets => {
-      setSets(loadedSets);
+      // Normalize orders if they are missing
+      const setsWithOrder = loadedSets.map((s, idx) => ({
+        ...s,
+        order: typeof s.order === 'number' ? s.order : idx
+      }));
+      setSets(setsWithOrder);
     });
   }, []);
 
@@ -174,7 +200,7 @@ const App: React.FC = () => {
 
   const handleCreateNew = () => {
     const id = Date.now().toString();
-    
+
     // Auto-populate series if currently filtered
     const defaultSeries = filterSeries !== 'ALL' ? filterSeries : '';
 
@@ -191,22 +217,22 @@ const App: React.FC = () => {
       type: 'Sticker',
       itemCount: 40,
       createdAt: Date.now(),
-      items: Array.from({ length: 40 }, (_, i) => ({ 
-        id: `item-${id}-${i}`, 
+      items: Array.from({ length: 40 }, (_, i) => ({
+        id: `item-${id}-${i}`,
         originalOrder: i + 1,
-        name: `Image ${i + 1}` 
+        name: `Image ${i + 1}`
       }))
     };
 
     // Update orders: shift everything down
-    const updatedSets = sets.map(s => ({...s, order: (s.order || 0) + 1}));
-    const finalSets = [{...newSet, order: 0}, ...updatedSets];
+    const updatedSets = sets.map(s => ({ ...s, order: (s.order || 0) + 1 }));
+    const finalSets = [{ ...newSet, order: 0 }, ...updatedSets];
 
     // Save all to DB to persist order
     saveStickerSets(finalSets).then(() => {
-        setSets(finalSets);
-        setActiveSetId(id);
-        setView('EDITOR');
+      setSets(finalSets);
+      setActiveSetId(id);
+      setView('EDITOR');
     });
   };
 
@@ -217,12 +243,10 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSet = async (id: string) => {
-    // Standard confirm dialog
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette collection ?')) {
-      await deleteStickerSet(id);
-      setSets(prev => prev.filter(s => s.id !== id));
-      if (swapSourceId === id) setSwapSourceId(null);
-    }
+    // Confirm dialog is handled inline by the button now
+    await deleteStickerSet(id);
+    setSets(prev => prev.filter(s => s.id !== id));
+    if (swapSourceId === id) setSwapSourceId(null);
   };
 
   const handleSwapClick = (id: string) => {
@@ -240,21 +264,20 @@ const App: React.FC = () => {
         const indexB = newSets.findIndex(s => s.id === id);
 
         if (indexA !== -1 && indexB !== -1) {
-          // Swap logic: We can simply swap them in the array if we rely on array index,
-          // but better to swap their 'order' property and re-sort.
-          
-          // Swap orders
-          const orderA = newSets[indexA].order;
-          const orderB = newSets[indexB].order;
-          newSets[indexA].order = orderB;
-          newSets[indexB].order = orderA;
+          // Swap logic using orders works best if we ensure orders are unique/valid
+          // Simple swap of order property:
+          const orderA = newSets[indexA].order || 0;
+          const orderB = newSets[indexB].order || 0;
+
+          newSets[indexA] = { ...newSets[indexA], order: orderB };
+          newSets[indexB] = { ...newSets[indexB], order: orderA };
 
           // Re-sort the array based on order
-          const sortedSets = newSets.sort((a, b) => a.order - b.order);
-          
+          const sortedSets = newSets.sort((a, b) => (a.order || 0) - (b.order || 0));
+
           // Save to DB
           saveStickerSets(sortedSets);
-          
+
           return sortedSets;
         }
         return prevSets;
@@ -300,38 +323,43 @@ const App: React.FC = () => {
       try {
         const content = e.target?.result as string;
         if (!content) {
-            alert("檔案讀取錯誤（內容為空）。");
-            return;
+          alert("檔案讀取錯誤（內容為空）。");
+          return;
         }
-        
+
         const data = JSON.parse(content);
-        
+
         if (Array.isArray(data)) {
-           // First Check: Import detected
-           if (window.confirm(`準備匯入 ${data.length} 個貼圖系列。\n\n按「確定」繼續。\n按「取消」放棄操作。`)) {
-              
-              // Second Check: Strategy (Merge or Restore)
-              const shouldClear = window.confirm(
-                `【重要】是否要先清空現有資料？\n\n` + 
-                `按「確定」：清空所有舊資料，完全還原備份 (Restore)。\n` + 
-                `按「取消」：保留舊資料，僅更新或新增項目 (Merge)。`
-              );
+          // First Check: Import detected
+          if (window.confirm(`準備匯入 ${data.length} 個貼圖系列。\n\n按「確定」繼續。\n按「取消」放棄操作。`)) {
 
-              if (shouldClear) {
-                await clearAllStickerSets();
-              }
+            // Second Check: Strategy (Merge or Restore)
+            const shouldClear = window.confirm(
+              `【重要】是否要先清空現有資料？\n\n` +
+              `按「確定」：清空所有舊資料，完全還原備份 (Restore)。\n` +
+              `按「取消」：保留舊資料，僅更新或新增項目 (Merge)。`
+            );
 
-              if (data.length > 0) {
-                 await saveStickerSets(data as StickerSet[]);
-              }
-              
-              // Refresh data
-              const refreshedSets = await getAllStickerSets();
-              setSets(refreshedSets);
-              
-              const actionText = shouldClear ? '還原' : '合併';
-              alert(`匯入成功！已${actionText} ${data.length} 筆資料。`);
-           }
+            if (shouldClear) {
+              await clearAllStickerSets();
+            }
+
+            if (data.length > 0) {
+              // Ensure imported data has correct structure
+              const cleanData = data.map((s: any, idx: number) => ({
+                ...s,
+                order: typeof s.order === 'number' ? s.order : idx // Ensure order exists
+              }));
+              await saveStickerSets(cleanData as StickerSet[]);
+            }
+
+            // Refresh data
+            const refreshedSets = await getAllStickerSets();
+            setSets(refreshedSets);
+
+            const actionText = shouldClear ? '還原' : '合併';
+            alert(`匯入成功！已${actionText} ${data.length} 筆資料。`);
+          }
         } else {
           alert("檔案格式錯誤。請確認這是從本應用程式匯出的 JSON 檔案。");
         }
@@ -364,11 +392,11 @@ const App: React.FC = () => {
 
   if (view === 'EDITOR' && activeSet) {
     return (
-      <StickerEditor 
-        set={activeSet} 
+      <StickerEditor
+        set={activeSet}
         allSeries={seriesList.filter(s => s !== 'ALL')}
-        onSave={handleSaveSet} 
-        onBack={() => setView('LIST')} 
+        onSave={handleSaveSet}
+        onBack={() => setView('LIST')}
       />
     );
   }
@@ -376,35 +404,34 @@ const App: React.FC = () => {
   return (
     <div className="min-h-screen pb-24 border-t-4 border-[#7D7489]">
       <header className="pt-24 pb-16 px-8 text-center">
-        <h1 className="text-xs uppercase tracking-[0.5em] text-[#9F97A8] font-cormorant mb-6">Maison de Création</h1>
+        <h1 className="text-sm uppercase tracking-[0.5em] text-[#9F97A8] font-cormorant mb-6">Maison de Création</h1>
         <h2 className="text-7xl md:text-9xl font-pinyon text-[#2C2C2C] tracking-tight mb-4">L'Atelier</h2>
-        <div className="text-sm font-cormorant italic text-[#7D7489]">Stickers & Emojis Manager</div>
+        <div className="text-base font-cormorant italic text-[#7D7489]">Stickers & Emojis Manager</div>
       </header>
 
       <main className="max-w-7xl mx-auto px-6 mt-12">
         <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-16 px-4">
           <div className="flex flex-wrap justify-center items-center gap-6 md:gap-8">
             <div className="flex items-center gap-4">
-               <span className="text-[10px] font-cormorant uppercase tracking-[0.2em] text-[#D8D2CB]">Filtre</span>
-               <div className="flex gap-4">
+              <span className="text-[10px] font-cormorant uppercase tracking-[0.2em] text-[#D8D2CB]">Filtre</span>
+              <div className="flex gap-4">
                 {['ALL', 'IDEATION', 'IN_PROGRESS', 'ARCHIVED'].map((s) => (
                   <button
                     key={s}
                     onClick={() => setFilterStatus(s as any)}
-                    className={`w-4 h-4 rounded-full transition-all border border-transparent ${
-                      filterStatus === s 
-                      ? 'bg-[#7D7489] scale-125 shadow-md' 
+                    className={`w-4 h-4 rounded-full transition-all border border-transparent ${filterStatus === s
+                      ? 'bg-[#7D7489] scale-125 shadow-md'
                       : (s === 'ALL' ? 'bg-[#E5E0D8]' : getStatusColor(s as CollectionStatus).split(' ')[0]) + ' hover:opacity-80'
-                    }`}
+                      }`}
                     title={s === 'ALL' ? '全部' : getStatusLabel(s as CollectionStatus)}
                   />
                 ))}
-               </div>
+              </div>
             </div>
 
             <div className="h-px w-8 bg-[#E5E0D8] hidden md:block"></div>
 
-            <select 
+            <select
               value={filterSeries}
               onChange={(e) => setFilterSeries(e.target.value)}
               className="bg-transparent border-b border-[#E5E0D8] text-sm font-fangsong py-1 focus:outline-none focus:border-[#7D7489] text-[#7D7489] cursor-pointer min-w-[120px]"
@@ -422,11 +449,11 @@ const App: React.FC = () => {
             )}
 
             {/* Hidden Import Input */}
-            <input 
-              type="file" 
-              accept=".json" 
-              ref={fileInputRef} 
-              className="hidden" 
+            <input
+              type="file"
+              accept=".json"
+              ref={fileInputRef}
+              className="hidden"
               onChange={handleFileImport}
             />
 
@@ -448,7 +475,7 @@ const App: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-16">
           {filteredSets.map(set => (
-            <CollectionCard 
+            <CollectionCard
               key={set.id}
               set={set}
               onClick={(id: string) => { setActiveSetId(id); setView('EDITOR'); }}
@@ -472,8 +499,8 @@ const App: React.FC = () => {
 
       <footer className="mt-32 border-t border-[#E5E0D8] py-12 text-center bg-[#FDFBF7]">
         <div className="font-playfair italic text-[#D8D2CB] text-xl">L'Atelier</div>
-        <div className="text-[10px] uppercase tracking-[0.3em] text-[#7D7489] mt-2 font-cormorant">
-          Digital Stationery v3.3
+        <div className="text-xs uppercase tracking-[0.3em] text-[#7D7489] mt-2 font-cormorant">
+          Digital Stationery v3.4
         </div>
       </footer>
     </div>
