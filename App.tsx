@@ -249,7 +249,7 @@ const App: React.FC = () => {
     if (swapSourceId === id) setSwapSourceId(null);
   };
 
-  const handleSwapClick = (id: string) => {
+  const handleSwapClick = async (id: string) => {
     if (swapSourceId === null) {
       // Select for swap
       setSwapSourceId(id);
@@ -258,30 +258,32 @@ const App: React.FC = () => {
       setSwapSourceId(null);
     } else {
       // Perform Swap
-      setSets(prevSets => {
-        const newSets = [...prevSets];
-        const indexA = newSets.findIndex(s => s.id === swapSourceId);
-        const indexB = newSets.findIndex(s => s.id === id);
+      const indexA = sets.findIndex(s => s.id === swapSourceId);
+      const indexB = sets.findIndex(s => s.id === id);
 
-        if (indexA !== -1 && indexB !== -1) {
-          // Swap logic using orders works best if we ensure orders are unique/valid
-          // Simple swap of order property:
-          const orderA = newSets[indexA].order || 0;
-          const orderB = newSets[indexB].order || 0;
+      if (indexA !== -1 && indexB !== -1) {
+        const newSets = [...sets];
 
-          newSets[indexA] = { ...newSets[indexA], order: orderB };
-          newSets[indexB] = { ...newSets[indexB], order: orderA };
+        // Swap logic using orders works best if we ensure orders are unique/valid
+        // Simple swap of order property:
+        const orderA = newSets[indexA].order || 0;
+        const orderB = newSets[indexB].order || 0;
 
-          // Re-sort the array based on order
-          const sortedSets = newSets.sort((a, b) => (a.order || 0) - (b.order || 0));
+        newSets[indexA] = { ...newSets[indexA], order: orderB };
+        newSets[indexB] = { ...newSets[indexB], order: orderA };
 
-          // Save to DB
-          saveStickerSets(sortedSets);
+        // Re-sort the array based on order
+        const sortedSets = newSets.sort((a, b) => (a.order || 0) - (b.order || 0));
 
-          return sortedSets;
+        // Save to DB with proper error handling
+        try {
+          await saveStickerSets(sortedSets);
+          setSets(sortedSets);
+        } catch (err) {
+          console.error("Failed to save swap", err);
+          alert("交換位置儲存失敗，請重試");
         }
-        return prevSets;
-      });
+      }
       setSwapSourceId(null);
     }
   };
