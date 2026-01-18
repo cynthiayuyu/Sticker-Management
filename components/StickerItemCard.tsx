@@ -1,6 +1,7 @@
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { StickerItem } from '../types';
+import { compressImage } from '../utils/imageCompression';
 
 interface StickerItemCardProps {
   item: StickerItem;
@@ -12,15 +13,22 @@ interface StickerItemCardProps {
 
 export const StickerItemCard: React.FC<StickerItemCardProps> = ({ item, index, isSelected, onSelect, onUpdate }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        onUpdate(item.id, { imageUrl: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+      try {
+        setIsCompressing(true);
+        // Compress image before storing
+        const compressedDataUrl = await compressImage(file, 800, 0.85);
+        onUpdate(item.id, { imageUrl: compressedDataUrl });
+      } catch (error) {
+        console.error('圖片壓縮失敗:', error);
+        alert('圖片上傳失敗，請重試');
+      } finally {
+        setIsCompressing(false);
+      }
     }
   };
 
@@ -36,6 +44,13 @@ export const StickerItemCard: React.FC<StickerItemCardProps> = ({ item, index, i
   const triggerUpload = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card selection when clicking upload
     fileInputRef.current?.click();
+  };
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card selection when clicking delete
+    if (window.confirm('確定要刪除這張圖片嗎？')) {
+      onUpdate(item.id, { imageUrl: undefined });
+    }
   };
 
   return (
@@ -65,12 +80,30 @@ export const StickerItemCard: React.FC<StickerItemCardProps> = ({ item, index, i
 
       <div className={`aspect-square w-full mb-4 flex items-center justify-center relative transition-all duration-500 overflow-hidden ${item.imageUrl ? '' : 'bg-[#F9F8F6] border border-dashed border-[#E5E0D8]'
         }`}>
-        {item.imageUrl ? (
+        {isCompressing ? (
+          <div className="flex flex-col items-center justify-center text-[#7D7489]">
+            <div className="animate-spin w-6 h-6 border-2 border-[#E5E0D8] border-t-[#7D7489] rounded-full mb-2"></div>
+            <span className="text-[10px] font-cormorant">壓縮中...</span>
+          </div>
+        ) : item.imageUrl ? (
           <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain p-1" />
         ) : (
           <div className="text-[#E5E0D8] flex flex-col items-center">
             <span className="font-cormorant italic text-lg opacity-50">+</span>
           </div>
+        )}
+
+        {/* Delete Button (top-right, only when image exists) */}
+        {item.imageUrl && (
+          <button
+            onClick={handleDelete}
+            className="absolute top-1 right-1 p-1.5 bg-white/90 text-red-400 hover:text-red-600 hover:bg-white opacity-0 group-hover:opacity-100 transition-all rounded-full shadow-sm border border-[#E5E0D8] hover:border-red-300 z-20"
+            title="刪除圖片"
+          >
+            <svg width="12" height="12" viewBox="0 0 15 15" fill="none">
+              <path d="M5.5 1C5.22386 1 5 1.22386 5 1.5C5 1.77614 5.22386 2 5.5 2H9.5C9.77614 2 10 1.77614 10 1.5C10 1.22386 9.77614 1 9.5 1H5.5ZM3 3.5C3 3.22386 3.22386 3 3.5 3H11.5C11.7761 3 12 3.22386 12 3.5C12 3.77614 11.7761 4 11.5 4H11V12C11 12.5523 10.5523 13 10 13H5C4.44772 13 4 12.5523 4 12V4H3.5C3.22386 4 3 3.77614 3 3.5ZM5 4V12H10V4H5Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
+            </svg>
+          </button>
         )}
 
         {/* Explicit Upload Button/Overlay */}
