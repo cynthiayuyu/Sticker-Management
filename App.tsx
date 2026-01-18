@@ -164,6 +164,7 @@ const App: React.FC = () => {
   const [activeSetId, setActiveSetId] = useState<string | null>(null);
 
   const [filterStatus, setFilterStatus] = useState<CollectionStatus | 'ALL'>('ALL');
+  const [filterType, setFilterType] = useState<'ALL' | 'Sticker' | 'Emoji'>('ALL');
   const [filterSeries, setFilterSeries] = useState<string>('ALL');
 
   // New state for click-to-swap
@@ -193,10 +194,11 @@ const App: React.FC = () => {
   const filteredSets = useMemo(() => {
     return sets.filter(s => {
       const matchStatus = filterStatus === 'ALL' || s.status === filterStatus;
+      const matchType = filterType === 'ALL' || s.type === filterType;
       const matchSeries = filterSeries === 'ALL' || s.series === filterSeries;
-      return matchStatus && matchSeries;
+      return matchStatus && matchType && matchSeries;
     });
-  }, [sets, filterStatus, filterSeries]);
+  }, [sets, filterStatus, filterType, filterSeries]);
 
   const handleCreateNew = () => {
     const id = Date.now().toString();
@@ -427,6 +429,33 @@ const App: React.FC = () => {
                       }`}
                     title={s === 'ALL' ? '全部' : getStatusLabel(s as CollectionStatus)}
                   />
+                ))}
+              </div>
+            </div>
+
+            <div className="h-px w-8 bg-[#E5E0D8] hidden md:block"></div>
+
+            {/* Type Filter */}
+            <div className="flex items-center gap-4">
+              <span className="text-[10px] font-cormorant uppercase tracking-[0.2em] text-[#D8D2CB]">類型</span>
+              <div className="flex gap-3">
+                {[
+                  { value: 'ALL', label: '全部', icon: '◈' },
+                  { value: 'Sticker', label: '貼圖', icon: '◆' },
+                  { value: 'Emoji', label: '表情貼', icon: '◇' }
+                ].map((type) => (
+                  <button
+                    key={type.value}
+                    onClick={() => setFilterType(type.value as any)}
+                    className={`px-3 py-1 rounded-full text-[10px] font-fangsong tracking-wider transition-all border ${
+                      filterType === type.value
+                        ? 'bg-[#7D7489] text-white border-[#7D7489] shadow-md scale-105'
+                        : 'bg-white text-[#9F97A8] border-[#E5E0D8] hover:border-[#7D7489] hover:text-[#7D7489]'
+                    }`}
+                    title={type.label}
+                  >
+                    {type.icon} {type.label}
+                  </button>
                 ))}
               </div>
             </div>
