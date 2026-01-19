@@ -5,6 +5,7 @@ import { StickerEditor } from './components/StickerEditor';
 import { Button } from './components/Button';
 import { getAllStickerSets, saveStickerSet, saveStickerSets, deleteStickerSet, clearAllStickerSets } from './services/storage';
 import { compressExistingImage } from './utils/imageCompression';
+import { githubSync } from './services/githubSync';
 
 // Sorting helper for Series: English (A-Z) then Chinese
 const sortSeries = (a: string, b: string) => {
@@ -174,6 +175,11 @@ const App: React.FC = () => {
   // Compression state
   const [isCompressing, setIsCompressing] = useState(false);
   const [compressionProgress, setCompressionProgress] = useState<{ current: number; total: number } | null>(null);
+
+  // GitHub Sync state
+  const [isLoggedIn, setIsLoggedIn] = useState(githubSync.isLoggedIn());
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
 
   // File input ref for import
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -377,6 +383,82 @@ const App: React.FC = () => {
     } catch (err) {
       console.error("Export failed", err);
       alert("匯出失敗，請稍後再試。");
+    }
+  };
+
+  // --- GitHub Sync Functions ---
+
+  const handleGitHubLogin = async () => {
+    const token = prompt('請輸入 GitHub Personal Access Token:\n\n如何取得：\n1. 前往 github.com/settings/tokens\n2. 點擊 "Generate new token (classic)"\n3. 勾選 "gist" 權限\n4. 生成並複製 Token');
+
+    if (!token) return;
+
+    try {
+      setIsSyncing(true);
+      await githubSync.login(token);
+      setIsLoggedIn(true);
+      alert('✅ 登入成功！\n\n您現在可以使用雲端同步功能。');
+    } catch (error: any) {
+      alert(`登入失敗：${error.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleGitHubLogout = () => {
+    if (confirm('確定要登出 GitHub 嗎？\n\n本地資料不會被刪除，但將無法同步。')) {
+      githubSync.logout();
+      setIsLoggedIn(false);
+      setLastSyncTime(null);
+    }
+  };
+
+  const handleUploadToGist = async () => {
+    if (!isLoggedIn) {
+      alert('請先登入 GitHub');
+      return;
+    }
+
+    try {
+      setIsSyncing(true);
+      const allSets = await getAllStickerSets();
+      await githubSync.upload(allSets);
+      setLastSyncTime(new Date());
+      alert('✅ 上傳成功！\n\n資料已同步到 GitHub Gist。');
+    } catch (error: any) {
+      alert(`上傳失敗：${error.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleDownloadFromGist = async () => {
+    if (!isLoggedIn) {
+      alert('請先登入 GitHub');
+      return;
+    }
+
+    if (!confirm('這將從 GitHub Gist 下載資料並覆蓋本地資料。\n\n確定要繼續嗎？')) {
+      return;
+    }
+
+    try {
+      setIsSyncing(true);
+      const remoteSets = await githubSync.download();
+
+      if (remoteSets.length === 0) {
+        alert('雲端還沒有備份資料。\n\n請先使用「上傳到雲端」功能。');
+        return;
+      }
+
+      await saveStickerSets(remoteSets);
+      setSets(remoteSets);
+      setLastSyncTime(new Date());
+      alert(`✅ 下載成功！\n\n已從雲端還原 ${remoteSets.length} 個貼圖集。`);
+    } catch (error: any) {
+      alert(`下載失敗：${error.message}`);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -586,6 +668,58 @@ const App: React.FC = () => {
               <Button onClick={handleImportClick} variant="ghost" size="sm" className="text-[#9F97A8] hover:text-[#7D7489]">
                 匯入
               </Button>
+            </div>
+
+            {/* GitHub Sync Controls */}
+            <div className="flex items-center gap-2 mr-2 border-r border-[#F3F0EB] pr-4">
+              {isLoggedIn ? (
+                <>
+                  <Button
+                    onClick={handleUploadToGist}
+                    variant="ghost"
+                    size="sm"
+                    className="text-[#9F97A8] hover:text-[#7D7489] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                    disabled={isSyncing}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 15 15" fill="none">
+                      <path d="M7.5 1C7.77614 1 8 1.22386 8 1.5V11.2929L11.1464 8.14645C11.3417 7.95118 11.6583 7.95118 11.8536 8.14645C12.0488 8.34171 12.0488 8.65829 11.8536 8.85355L7.85355 12.8536C7.65829 13.0488 7.34171 13.0488 7.14645 12.8536L3.14645 8.85355C2.95118 8.65829 2.95118 8.34171 3.14645 8.14645C3.34171 7.95118 3.65829 7.95118 3.85355 8.14645L7 11.2929V1.5C7 1.22386 7.22386 1 7.5 1Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"/>
+                    </svg>
+                    {isSyncing ? '同步中...' : '上傳到雲端'}
+                  </Button>
+                  <Button
+                    onClick={handleDownloadFromGist}
+                    variant="ghost"
+                    size="sm"
+                    className="text-[#9F97A8] hover:text-[#7D7489] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                    disabled={isSyncing}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 15 15" fill="none">
+                      <path d="M7.5 14C7.22386 14 7 13.7761 7 13.5V3.70711L3.85355 6.85355C3.65829 7.04882 3.34171 7.04882 3.14645 6.85355C2.95118 6.65829 2.95118 6.34171 3.14645 6.14645L7.14645 2.14645C7.34171 1.95118 7.65829 1.95118 7.85355 2.14645L11.8536 6.14645C12.0488 6.34171 12.0488 6.65829 11.8536 6.85355C11.6583 7.04882 11.3417 7.04882 11.1464 6.85355L8 3.70711V13.5C8 13.7761 7.77614 14 7.5 14Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"/>
+                    </svg>
+                    從雲端下載
+                  </Button>
+                  <Button
+                    onClick={handleGitHubLogout}
+                    variant="ghost"
+                    size="sm"
+                    className="text-[#D8D2CB] hover:text-[#9F97A8] text-[10px]"
+                  >
+                    登出
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={handleGitHubLogin}
+                  variant="ghost"
+                  size="sm"
+                  className="text-[#9F97A8] hover:text-[#7D7489] flex items-center gap-1"
+                >
+                  <svg width="12" height="12" viewBox="0 0 15 15" fill="none">
+                    <path d="M7.49933 0.25C3.49635 0.25 0.25 3.49593 0.25 7.50024C0.25 10.703 2.32715 13.4206 5.2081 14.3797C5.57084 14.446 5.70302 14.2222 5.70302 14.0299C5.70302 13.8576 5.69679 13.4019 5.69323 12.797C3.67661 13.235 3.25112 11.825 3.25112 11.825C2.92132 10.9874 2.44599 10.7644 2.44599 10.7644C1.78773 10.3149 2.49584 10.3238 2.49584 10.3238C3.22353 10.375 3.60629 11.0711 3.60629 11.0711C4.25298 12.1788 5.30335 11.8588 5.71638 11.6732C5.78225 11.205 5.96962 10.8854 6.17658 10.7043C4.56675 10.5209 2.87415 9.89918 2.87415 7.12104C2.87415 6.32925 3.15677 5.68257 3.62053 5.17563C3.54576 4.99226 3.29697 4.25521 3.69174 3.25691C3.69174 3.25691 4.30015 3.06196 5.68522 3.99973C6.26337 3.83906 6.8838 3.75895 7.50022 3.75583C8.1162 3.75895 8.73619 3.83906 9.31523 3.99973C10.6994 3.06196 11.3069 3.25691 11.3069 3.25691C11.7026 4.25521 11.4538 4.99226 11.3795 5.17563C11.8441 5.68257 12.1245 6.32925 12.1245 7.12104C12.1245 9.9063 10.4292 10.5192 8.81452 10.6985C9.07444 10.9224 9.30633 11.3648 9.30633 12.0413C9.30633 13.0102 9.29742 13.7922 9.29742 14.0299C9.29742 14.2239 9.42828 14.4496 9.79591 14.3788C12.6746 13.4179 14.75 10.7025 14.75 7.50024C14.75 3.49593 11.5036 0.25 7.49933 0.25Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"/>
+                  </svg>
+                  登入 GitHub
+                </Button>
+              )}
             </div>
 
             <Button onClick={handleCreateNew} variant="outline" className="tracking-[0.2em] text-sm hover:bg-[#F3F0F5]">
