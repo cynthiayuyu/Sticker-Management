@@ -4,6 +4,7 @@ import { StickerSet, ViewState, CollectionStatus } from './types';
 import { StickerEditor } from './components/StickerEditor';
 import { Button } from './components/Button';
 import { getAllStickerSets, saveStickerSet, saveStickerSets, deleteStickerSet, clearAllStickerSets } from './services/storage';
+import { compressExistingImage } from './utils/imageCompression';
 
 // Sorting helper for Series: English (A-Z) then Chinese
 const sortSeries = (a: string, b: string) => {
@@ -170,6 +171,10 @@ const App: React.FC = () => {
   // New state for click-to-swap
   const [swapSourceId, setSwapSourceId] = useState<string | null>(null);
 
+  // Compression state
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionProgress, setCompressionProgress] = useState<{ current: number; total: number } | null>(null);
+
   // File input ref for import
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -287,6 +292,69 @@ const App: React.FC = () => {
         }
       }
       setSwapSourceId(null);
+    }
+  };
+
+  // --- Compress All Images ---
+
+  const handleCompressAll = async () => {
+    if (!confirm('這將壓縮所有現有圖片以減少檔案大小。\n\n壓縮後圖片品質會略微下降，但可減少 70-80% 的儲存空間。\n\n確定要繼續嗎？')) {
+      return;
+    }
+
+    setIsCompressing(true);
+    let processedCount = 0;
+    let totalImages = 0;
+
+    // Count total images
+    sets.forEach(set => {
+      set.stickers.forEach(sticker => {
+        if (sticker.imageUrl) totalImages++;
+      });
+    });
+
+    if (totalImages === 0) {
+      alert('沒有找到需要壓縮的圖片！');
+      setIsCompressing(false);
+      return;
+    }
+
+    setCompressionProgress({ current: 0, total: totalImages });
+
+    try {
+      const updatedSets = await Promise.all(
+        sets.map(async (set) => {
+          const updatedStickers = await Promise.all(
+            set.stickers.map(async (sticker) => {
+              if (sticker.imageUrl) {
+                try {
+                  const compressed = await compressExistingImage(sticker.imageUrl, 800, 0.85);
+                  processedCount++;
+                  setCompressionProgress({ current: processedCount, total: totalImages });
+                  return { ...sticker, imageUrl: compressed };
+                } catch (err) {
+                  console.error('壓縮圖片失敗:', err);
+                  processedCount++;
+                  setCompressionProgress({ current: processedCount, total: totalImages });
+                  return sticker; // Keep original on error
+                }
+              }
+              return sticker;
+            })
+          );
+          return { ...set, stickers: updatedStickers };
+        })
+      );
+
+      await saveStickerSets(updatedSets);
+      setSets(updatedSets);
+      alert(`✅ 壓縮完成！\n\n成功處理 ${totalImages} 張圖片。\n請使用「匯出」功能備份您的資料。`);
+    } catch (err) {
+      console.error('批次壓縮失敗:', err);
+      alert('壓縮過程中發生錯誤，請重試。');
+    } finally {
+      setIsCompressing(false);
+      setCompressionProgress(null);
     }
   };
 
@@ -473,6 +541,19 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4">
+            {isCompressing && compressionProgress && (
+              <div className="flex flex-col items-end gap-1 mr-4">
+                <span className="text-xs text-[#7D7489] font-fangsong">
+                  正在壓縮圖片... {compressionProgress.current} / {compressionProgress.total}
+                </span>
+                <div className="w-40 h-1 bg-[#F3F0EB] rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#7D7489] transition-all duration-300"
+                    style={{ width: `${(compressionProgress.current / compressionProgress.total) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
+            )}
             {swapSourceId && (
               <span className="text-xs text-[#7D7489] font-fangsong animate-pulse">
                 請選擇另一個項目進行交換...
@@ -488,8 +569,17 @@ const App: React.FC = () => {
               onChange={handleFileImport}
             />
 
-            {/* Backup Controls */}
+            {/* Backup & Compression Controls */}
             <div className="flex items-center gap-2 mr-2 border-r border-[#F3F0EB] pr-4">
+              <Button
+                onClick={handleCompressAll}
+                variant="ghost"
+                size="sm"
+                className="text-[#9F97A8] hover:text-[#7D7489] disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isCompressing}
+              >
+                {isCompressing ? '壓縮中...' : '一鍵壓縮'}
+              </Button>
               <Button onClick={handleExport} variant="ghost" size="sm" className="text-[#9F97A8] hover:text-[#7D7489]">
                 匯出
               </Button>
