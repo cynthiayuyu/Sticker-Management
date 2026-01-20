@@ -314,8 +314,8 @@ const App: React.FC = () => {
 
     // Count total images
     sets.forEach(set => {
-      set.stickers.forEach(sticker => {
-        if (sticker.imageUrl) totalImages++;
+      set.items.forEach(item => {
+        if (item.imageUrl) totalImages++;
       });
     });
 
@@ -330,25 +330,25 @@ const App: React.FC = () => {
     try {
       const updatedSets = await Promise.all(
         sets.map(async (set) => {
-          const updatedStickers = await Promise.all(
-            set.stickers.map(async (sticker) => {
-              if (sticker.imageUrl) {
+          const updatedItems = await Promise.all(
+            set.items.map(async (item) => {
+              if (item.imageUrl) {
                 try {
-                  const compressed = await compressExistingImage(sticker.imageUrl, 800, 0.85);
+                  const compressed = await compressExistingImage(item.imageUrl, 800, 0.85);
                   processedCount++;
                   setCompressionProgress({ current: processedCount, total: totalImages });
-                  return { ...sticker, imageUrl: compressed };
+                  return { ...item, imageUrl: compressed };
                 } catch (err) {
                   console.error('壓縮圖片失敗:', err);
                   processedCount++;
                   setCompressionProgress({ current: processedCount, total: totalImages });
-                  return sticker; // Keep original on error
+                  return item; // Keep original on error
                 }
               }
-              return sticker;
+              return item;
             })
           );
-          return { ...set, stickers: updatedStickers };
+          return { ...set, items: updatedItems };
         })
       );
 
