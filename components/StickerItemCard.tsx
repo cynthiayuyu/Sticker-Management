@@ -126,12 +126,22 @@ export const StickerItemCard: React.FC<StickerItemCardProps> = ({ item, index, i
       </div>
 
       <div className="relative z-20">
-        <input
-          type="text"
+        <textarea
           value={item.name}
           placeholder="名稱"
           onChange={(e) => onUpdate(item.id, { name: e.target.value })}
-          className="w-full text-center text-sm md:text-base font-fangsong text-[#5D5550] placeholder-[#D8D2CB] focus:outline-none bg-transparent py-2 border-b border-transparent focus:border-[#7D7489] transition-all"
+          rows={2}
+          className="w-full text-center text-sm md:text-base font-fangsong text-[#5D5550] placeholder-[#D8D2CB] focus:outline-none bg-transparent py-2 border-b border-transparent focus:border-[#7D7489] transition-all resize-none overflow-hidden break-words"
+          style={{
+            minHeight: '2.5rem',
+            maxHeight: '5rem'
+          }}
+          onInput={(e) => {
+            // Auto-resize textarea based on content
+            const target = e.target as HTMLTextAreaElement;
+            target.style.height = 'auto';
+            target.style.height = Math.min(target.scrollHeight, 80) + 'px';
+          }}
         />
       </div>
     </div>

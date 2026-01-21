@@ -96,8 +96,13 @@ export class GitHubSyncService {
       throw new Error('未登入 GitHub');
     }
 
+    // If no gist ID is stored, try to find it by searching user's gists
     if (!this.gistId) {
-      // No gist exists yet, return empty array
+      await this.findGistByDescription();
+    }
+
+    // If still no gist ID after searching, return empty array
+    if (!this.gistId) {
       return [];
     }
 
@@ -130,6 +135,43 @@ export class GitHubSyncService {
       return JSON.parse(content);
     } catch (error: any) {
       throw new Error(`下載失敗：${error.message}`);
+    }
+  }
+
+  /**
+   * Search for the backup gist by description
+   * This allows devices to find the same gist even without the stored ID
+   */
+  private async findGistByDescription(): Promise<void> {
+    if (!this.token) return;
+
+    try {
+      // Fetch user's gists
+      const response = await fetch('https://api.github.com/gists', {
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+          'Accept': 'application/vnd.github.v3+json'
+        }
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      const gists = await response.json();
+
+      // Find the gist with our backup description
+      const backupGist = gists.find((gist: any) =>
+        gist.description === "L'Atelier de Stickers - Backup"
+      );
+
+      if (backupGist) {
+        // Store the found gist ID
+        this.gistId = backupGist.id;
+        localStorage.setItem(GIST_ID_KEY, backupGist.id);
+      }
+    } catch (error) {
+      console.error('Failed to search for gist:', error);
     }
   }
 
