@@ -414,7 +414,7 @@ const App: React.FC = () => {
   };
 
   const handleResetSync = () => {
-    if (confirm('這將清除同步設定（Gist ID 和 Token）。\n\n本地資料不會被刪除，但您需要重新登入。\n\n適用於解決同步問題。\n\n確定要繼續嗎？')) {
+    if (confirm('⚠️ 重置同步功能說明：\n\n這會清除：\n• GitHub Token（登入資訊）\n• Gist ID（雲端連結）\n\n不會影響：\n✓ 本地貼圖資料\n✓ 雲端備份資料\n\n適用情況：\n• Token 已過期或權限錯誤\n• 切換不同的 GitHub 帳號\n• 解決同步問題\n\n重置後需要重新登入才能同步。\n\n確定要繼續嗎？')) {
       // Clear both token and gist ID
       localStorage.removeItem('latelier_github_token');
       localStorage.removeItem('latelier_gist_id');
@@ -728,7 +728,7 @@ const App: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       className="text-[10px] text-yellow-600 hover:text-yellow-700"
-                      title="遇到同步問題時使用"
+                      title="清除登入資訊與雲端連結（不影響資料）"
                     >
                       重置
                     </Button>
@@ -759,7 +759,7 @@ const App: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       className="text-[10px] text-yellow-600 hover:text-yellow-700"
-                      title="遇到同步問題時使用"
+                      title="清除舊的登入資訊（解決同步問題）"
                     >
                       重置同步
                     </Button>

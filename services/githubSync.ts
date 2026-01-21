@@ -96,17 +96,17 @@ export class GitHubSyncService {
       throw new Error('未登入 GitHub');
     }
 
-    // If no gist ID is stored, try to find it by searching user's gists
-    if (!this.gistId) {
-      await this.findGistByDescription();
-    }
-
-    // If still no gist ID after searching, return empty array
-    if (!this.gistId) {
-      return [];
-    }
-
     try {
+      // If no gist ID is stored, try to find it by searching user's gists
+      if (!this.gistId) {
+        await this.findGistByDescription();
+      }
+
+      // If still no gist ID after searching, return empty array
+      if (!this.gistId) {
+        return [];
+      }
+
       const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
         headers: {
           'Authorization': `Bearer ${this.token}`,
@@ -121,6 +121,9 @@ export class GitHubSyncService {
           localStorage.removeItem(GIST_ID_KEY);
           return [];
         }
+        if (response.status === 401) {
+          throw new Error('Token 已過期，請重新登入');
+        }
         throw new Error(`HTTP ${response.status}`);
       }
 
@@ -134,6 +137,10 @@ export class GitHubSyncService {
       const content = file.content;
       return JSON.parse(content);
     } catch (error: any) {
+      // If error already has a clear message, use it
+      if (error.message.includes('Token') || error.message.includes('權限') || error.message.includes('Gist')) {
+        throw error;
+      }
       throw new Error(`下載失敗：${error.message}`);
     }
   }
@@ -155,7 +162,12 @@ export class GitHubSyncService {
       });
 
       if (!response.ok) {
-        return;
+        if (response.status === 401) {
+          throw new Error('Token 已過期或無效，請重新登入');
+        } else if (response.status === 403) {
+          throw new Error('Token 權限不足，請確認已勾選「gist」權限');
+        }
+        throw new Error(`無法取得 Gist 列表 (HTTP ${response.status})`);
       }
 
       const gists = await response.json();
@@ -170,8 +182,9 @@ export class GitHubSyncService {
         this.gistId = backupGist.id;
         localStorage.setItem(GIST_ID_KEY, backupGist.id);
       }
-    } catch (error) {
-      console.error('Failed to search for gist:', error);
+    } catch (error: any) {
+      // Re-throw the error so it can be caught by the download function
+      throw error;
     }
   }
 
