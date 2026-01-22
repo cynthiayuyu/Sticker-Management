@@ -74,16 +74,21 @@ export class GitHubSyncService {
     }
 
     const content = JSON.stringify(stickerSets, null, 2);
+    console.log(`[GitHub Sync] 準備上傳 ${stickerSets.length} 個貼圖集`);
 
     try {
       if (this.gistId) {
+        console.log('[GitHub Sync] 更新現有 Gist:', this.gistId);
         // Update existing gist
         await this.updateGist(content);
       } else {
+        console.log('[GitHub Sync] 建立新的 Gist');
         // Create new gist
         await this.createGist(content);
+        console.log('[GitHub Sync] 新 Gist 建立成功，ID:', this.gistId);
       }
     } catch (error: any) {
+      console.error('[GitHub Sync] 上傳失敗:', error);
       throw new Error(`上傳失敗：${error.message}`);
     }
   }
@@ -97,16 +102,21 @@ export class GitHubSyncService {
     }
 
     try {
+      console.log('[GitHub Sync] 開始下載，當前 Gist ID:', this.gistId);
+
       // If no gist ID is stored, try to find it by searching user's gists
       if (!this.gistId) {
+        console.log('[GitHub Sync] 本地無 Gist ID，開始搜索...');
         await this.findGistByDescription();
       }
 
       // If still no gist ID after searching, return empty array
       if (!this.gistId) {
+        console.warn('[GitHub Sync] 搜索後仍未找到 Gist ID');
         return [];
       }
 
+      console.log('[GitHub Sync] 從 Gist 下載資料:', this.gistId);
       const response = await fetch(`https://api.github.com/gists/${this.gistId}`, {
         headers: {
           'Authorization': `Bearer ${this.token}`,
@@ -115,8 +125,10 @@ export class GitHubSyncService {
       });
 
       if (!response.ok) {
+        console.error('[GitHub Sync] 下載失敗:', response.status);
         if (response.status === 404) {
           // Gist not found, clear stored ID and return empty
+          console.warn('[GitHub Sync] Gist 不存在，清除本地 ID');
           this.gistId = null;
           localStorage.removeItem(GIST_ID_KEY);
           return [];
@@ -131,12 +143,16 @@ export class GitHubSyncService {
       const file = gist.files[GIST_FILENAME];
 
       if (!file) {
+        console.warn('[GitHub Sync] Gist 中未找到檔案:', GIST_FILENAME);
         return [];
       }
 
       const content = file.content;
-      return JSON.parse(content);
+      const data = JSON.parse(content);
+      console.log(`[GitHub Sync] 成功下載 ${data.length} 個貼圖集`);
+      return data;
     } catch (error: any) {
+      console.error('[GitHub Sync] 下載時發生錯誤:', error);
       // If error already has a clear message, use it
       if (error.message.includes('Token') || error.message.includes('權限') || error.message.includes('Gist')) {
         throw error;
@@ -153,6 +169,7 @@ export class GitHubSyncService {
     if (!this.token) return;
 
     try {
+      console.log('[GitHub Sync] 搜索用戶的 Gists...');
       // Fetch user's gists
       const response = await fetch('https://api.github.com/gists', {
         headers: {
@@ -162,6 +179,7 @@ export class GitHubSyncService {
       });
 
       if (!response.ok) {
+        console.error('[GitHub Sync] 取得 Gist 列表失敗:', response.status);
         if (response.status === 401) {
           throw new Error('Token 已過期或無效，請重新登入');
         } else if (response.status === 403) {
@@ -171,6 +189,7 @@ export class GitHubSyncService {
       }
 
       const gists = await response.json();
+      console.log(`[GitHub Sync] 找到 ${gists.length} 個 Gists`);
 
       // Find the gist with our backup description
       const backupGist = gists.find((gist: any) =>
@@ -178,11 +197,15 @@ export class GitHubSyncService {
       );
 
       if (backupGist) {
+        console.log('[GitHub Sync] 找到備份 Gist:', backupGist.id);
         // Store the found gist ID
         this.gistId = backupGist.id;
         localStorage.setItem(GIST_ID_KEY, backupGist.id);
+      } else {
+        console.warn('[GitHub Sync] 未找到備份 Gist');
       }
     } catch (error: any) {
+      console.error('[GitHub Sync] 搜索 Gist 時發生錯誤:', error);
       // Re-throw the error so it can be caught by the download function
       throw error;
     }

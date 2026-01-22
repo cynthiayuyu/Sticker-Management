@@ -433,12 +433,16 @@ const App: React.FC = () => {
 
     try {
       setIsSyncing(true);
+      console.log('[App] 開始上傳到雲端...');
       const allSets = await getAllStickerSets();
+      console.log(`[App] 準備上傳 ${allSets.length} 個貼圖集`);
       await githubSync.upload(allSets);
       setLastSyncTime(new Date());
+      console.log('[App] 上傳成功');
       alert('✅ 上傳成功！\n\n資料已同步到 GitHub Gist。');
     } catch (error: any) {
-      alert(`上傳失敗：${error.message}`);
+      console.error('[App] 上傳失敗:', error);
+      alert(`❌ 上傳失敗\n\n錯誤訊息：${error.message}`);
     } finally {
       setIsSyncing(false);
     }
@@ -456,19 +460,23 @@ const App: React.FC = () => {
 
     try {
       setIsSyncing(true);
+      console.log('[App] 開始從雲端下載...');
       const remoteSets = await githubSync.download();
 
       if (remoteSets.length === 0) {
-        alert('雲端還沒有備份資料。\n\n請先使用「上傳到雲端」功能。');
+        console.warn('[App] 下載結果為空');
+        alert('⚠️ 雲端沒有找到備份資料\n\n可能原因：\n1. 還沒有上傳過資料\n2. Gist 已被刪除\n3. Token 權限不足\n\n請檢查瀏覽器 Console (F12) 查看詳細日誌。');
         return;
       }
 
+      console.log(`[App] 準備保存 ${remoteSets.length} 個貼圖集`);
       await saveStickerSets(remoteSets);
       setSets(remoteSets);
       setLastSyncTime(new Date());
       alert(`✅ 下載成功！\n\n已從雲端還原 ${remoteSets.length} 個貼圖集。`);
     } catch (error: any) {
-      alert(`下載失敗：${error.message}`);
+      console.error('[App] 下載失敗:', error);
+      alert(`❌ 下載失敗\n\n錯誤訊息：${error.message}\n\n請檢查瀏覽器 Console (F12) 查看詳細日誌。`);
     } finally {
       setIsSyncing(false);
     }
