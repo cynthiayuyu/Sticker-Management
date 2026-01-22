@@ -162,7 +162,27 @@ export class GitHubSyncService {
         return [];
       }
 
-      const content = file.content;
+      // Check if content was truncated by GitHub API
+      let content: string;
+      if (file.truncated) {
+        console.log('Content was truncated, fetching from raw_url:', file.raw_url);
+
+        // Fetch full content from raw_url
+        const rawResponse = await fetch(file.raw_url, {
+          headers: {
+            'Authorization': `Bearer ${this.token}`,
+            'Accept': 'application/vnd.github.v3+json'
+          }
+        });
+
+        if (!rawResponse.ok) {
+          throw new Error(`無法獲取完整內容 (HTTP ${rawResponse.status})`);
+        }
+
+        content = await rawResponse.text();
+      } else {
+        content = file.content;
+      }
 
       // Check if content is empty or invalid
       if (!content || content.trim() === '') {
