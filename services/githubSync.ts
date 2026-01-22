@@ -73,7 +73,31 @@ export class GitHubSyncService {
       throw new Error('未登入 GitHub');
     }
 
-    const content = JSON.stringify(stickerSets, null, 2);
+    // Validate data before upload
+    let content: string;
+    try {
+      content = JSON.stringify(stickerSets, null, 2);
+
+      // Verify JSON can be parsed back (validation)
+      const testParse = JSON.parse(content);
+      if (!Array.isArray(testParse)) {
+        throw new Error('資料序列化後格式不正確');
+      }
+    } catch (error: any) {
+      throw new Error(`資料格式化失敗：${error.message}`);
+    }
+
+    // Check size (GitHub Gist has 10MB limit per file)
+    const sizeInBytes = new Blob([content]).size;
+    const sizeInMB = sizeInBytes / (1024 * 1024);
+
+    if (sizeInMB > 10) {
+      throw new Error(`資料太大（${sizeInMB.toFixed(2)} MB），超過 GitHub Gist 10MB 限制。請減少貼圖集數量或圖片大小。`);
+    }
+
+    if (sizeInMB > 5) {
+      console.warn(`Warning: Data size is ${sizeInMB.toFixed(2)} MB, approaching Gist limit`);
+    }
 
     try {
       if (this.gistId) {
@@ -84,6 +108,10 @@ export class GitHubSyncService {
         await this.createGist(content);
       }
     } catch (error: any) {
+      // Check if error is related to size or content
+      if (error.message && error.message.includes('too large')) {
+        throw new Error('上傳失敗：資料超過 GitHub 限制，請減少貼圖集數量');
+      }
       throw new Error(`上傳失敗：${error.message}`);
     }
   }
@@ -142,6 +170,11 @@ export class GitHubSyncService {
         return [];
       }
 
+      // Check content size
+      const sizeInBytes = new Blob([content]).size;
+      const sizeInMB = sizeInBytes / (1024 * 1024);
+      console.log(`Downloading ${sizeInMB.toFixed(2)} MB of data from Gist`);
+
       // Try to parse JSON with better error handling
       try {
         const parsedData = JSON.parse(content);
@@ -153,9 +186,21 @@ export class GitHubSyncService {
 
         return parsedData;
       } catch (parseError: any) {
+        // Provide detailed error information
+        console.error('JSON parse error:', parseError);
+        console.error('Content length:', content.length);
+        console.error('Content preview (first 200 chars):', content.substring(0, 200));
+        console.error('Content preview (last 200 chars):', content.substring(Math.max(0, content.length - 200)));
+
         if (parseError.message.includes('下載的資料格式不正確')) {
           throw parseError;
         }
+
+        // Check if JSON was truncated
+        if (parseError.message.includes('Unterminated') || parseError.message.includes('Unexpected end')) {
+          throw new Error('下載的資料不完整，可能在上傳時被截斷。請重新上傳資料到雲端。');
+        }
+
         throw new Error(`下載的資料格式錯誤：${parseError.message}`);
       }
     } catch (error: any) {
