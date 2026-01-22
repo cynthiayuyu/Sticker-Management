@@ -135,12 +135,50 @@ export class GitHubSyncService {
       }
 
       const content = file.content;
-      return JSON.parse(content);
+
+      // Check if content is empty or invalid
+      if (!content || content.trim() === '') {
+        console.warn('Gist content is empty');
+        return [];
+      }
+
+      // Try to parse JSON with better error handling
+      try {
+        const parsedData = JSON.parse(content);
+
+        // Validate that the parsed data is an array
+        if (!Array.isArray(parsedData)) {
+          throw new Error('下載的資料格式不正確（應該是陣列）');
+        }
+
+        return parsedData;
+      } catch (parseError: any) {
+        if (parseError.message.includes('下載的資料格式不正確')) {
+          throw parseError;
+        }
+        throw new Error(`下載的資料格式錯誤：${parseError.message}`);
+      }
     } catch (error: any) {
+      // Log the full error for debugging
+      console.error('GitHub download error:', error);
+
       // If error already has a clear message, use it
-      if (error.message.includes('Token') || error.message.includes('權限') || error.message.includes('Gist')) {
+      if (error.message.includes('Token') ||
+          error.message.includes('權限') ||
+          error.message.includes('Gist') ||
+          error.message.includes('資料格式')) {
         throw error;
       }
+
+      // Provide more specific error messages
+      if (error.name === 'SyntaxError') {
+        throw new Error('下載失敗：雲端資料格式損壞，請檢查 GitHub Gist');
+      }
+
+      if (error.message.includes('fetch')) {
+        throw new Error('下載失敗：網路連線問題，請檢查網路設定');
+      }
+
       throw new Error(`下載失敗：${error.message}`);
     }
   }
