@@ -14,21 +14,54 @@ interface StickerItemCardProps {
 export const StickerItemCard: React.FC<StickerItemCardProps> = ({ item, index, isSelected, onSelect, onUpdate }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isCompressing, setIsCompressing] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const handleFileUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      alert('請上傳圖片檔案');
+      return;
+    }
+
+    try {
+      setIsCompressing(true);
+      // Compress image before storing
+      const compressedDataUrl = await compressImage(file, 800, 0.85);
+      onUpdate(item.id, { imageUrl: compressedDataUrl });
+    } catch (error) {
+      console.error('圖片壓縮失敗:', error);
+      alert('圖片上傳失敗，請重試');
+    } finally {
+      setIsCompressing(false);
+    }
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      try {
-        setIsCompressing(true);
-        // Compress image before storing
-        const compressedDataUrl = await compressImage(file, 800, 0.85);
-        onUpdate(item.id, { imageUrl: compressedDataUrl });
-      } catch (error) {
-        console.error('圖片壓縮失敗:', error);
-        alert('圖片上傳失敗，請重試');
-      } finally {
-        setIsCompressing(false);
-      }
+      await handleFileUpload(file);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      await handleFileUpload(file);
     }
   };
 
@@ -78,12 +111,27 @@ export const StickerItemCard: React.FC<StickerItemCardProps> = ({ item, index, i
           }`}></div>
       </div>
 
-      <div className={`aspect-square w-full mb-4 flex items-center justify-center relative transition-all duration-500 overflow-hidden ${item.imageUrl ? '' : 'bg-[#F9F8F6] border border-dashed border-[#E5E0D8]'
-        }`}>
+      <div
+        className={`aspect-square w-full mb-4 flex items-center justify-center relative transition-all duration-500 overflow-hidden ${
+          item.imageUrl ? '' : 'bg-[#F9F8F6] border border-dashed border-[#E5E0D8]'
+        } ${
+          isDragging ? 'border-[#7D7489] border-2 bg-[#F3F0F5]' : ''
+        }`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
         {isCompressing ? (
           <div className="flex flex-col items-center justify-center text-[#7D7489]">
             <div className="animate-spin w-6 h-6 border-2 border-[#E5E0D8] border-t-[#7D7489] rounded-full mb-2"></div>
             <span className="text-[10px] font-cormorant">壓縮中...</span>
+          </div>
+        ) : isDragging ? (
+          <div className="text-[#7D7489] flex flex-col items-center">
+            <svg width="24" height="24" viewBox="0 0 15 15" fill="none" className="mb-2">
+              <path d="M7.81825 1.18188C7.64251 1.00615 7.35759 1.00615 7.18185 1.18188L4.18185 4.18188C4.00611 4.35762 4.00611 4.64254 4.18185 4.81828C4.35759 4.99401 4.64251 4.99401 4.81825 4.81828L7.05005 2.58648V9.49996C7.05005 9.74849 7.25152 9.94996 7.50005 9.94996C7.74858 9.94996 7.95005 9.74849 7.95005 9.49996V2.58648L10.1819 4.81828C10.3576 4.99401 10.6425 4.99401 10.8182 4.81828C10.994 4.64254 10.994 4.35762 10.8182 4.18188L7.81825 1.18188ZM2.5 9.99997C2.77614 9.99997 3 10.2238 3 10.5V12C3 12.5538 3.44565 13 3.99635 13H11.0012C11.5529 13 12 12.5528 12 12V10.5C12 10.2238 12.2239 9.99997 12.5 9.99997C12.7761 9.99997 13 10.2238 13 10.5V12C13 13.104 12.1062 14 11.0012 14H3.99635C2.89019 14 2 13.103 2 12V10.5C2 10.2238 2.22386 9.99997 2.5 9.99997Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"/>
+            </svg>
+            <span className="text-[10px] font-cormorant tracking-widest">拖放圖片到此</span>
           </div>
         ) : item.imageUrl ? (
           <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain p-1" />
