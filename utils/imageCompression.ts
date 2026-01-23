@@ -125,14 +125,15 @@ export async function compressExistingImage(
         return;
       }
 
+      // Draw image first to check transparency
+      ctx.drawImage(img, 0, 0, width, height);
+
       // Check if original image is PNG (likely has transparency)
       const isPNG = dataUrl.startsWith('data:image/png');
 
-      // If converting from PNG to JPEG, fill with white background
-      // Otherwise transparent areas become black
       if (isPNG) {
+        console.log(`[重新壓縮] 原始格式: PNG，檢查透明度...`);
         // Check if image actually has transparency
-        ctx.drawImage(img, 0, 0, width, height);
         const hasAlpha = hasTransparency(ctx, width, height);
 
         if (hasAlpha) {
@@ -143,17 +144,19 @@ export async function compressExistingImage(
           const compressedSizeKB = ((compressedDataUrl.length * 3) / 4 / 1024).toFixed(2);
           const ratio = ((parseFloat(compressedSizeKB) / parseFloat(originalSizeKB)) * 100).toFixed(1);
           console.log(`[重新壓縮] 壓縮後大小: ${compressedSizeKB} KB (${ratio}% of original)`);
+          console.log(`[重新壓縮] ⚠️ PNG 無損格式，壓縮效果有限`);
 
           resolve(compressedDataUrl);
           return;
         }
 
-        // No transparency, can safely convert to JPEG with white background
+        // No transparency, convert to JPEG for better compression
+        console.log(`[重新壓縮] PNG 無透明度，轉換為 JPEG 以獲得更好壓縮`);
         // Clear and redraw with white background
         ctx.clearRect(0, 0, width, height);
       }
 
-      console.log(`[重新壓縮] 輸出格式: JPEG`);
+      console.log(`[重新壓縮] 輸出格式: JPEG (quality: ${quality})`);
 
       // Fill with white background before drawing (for JPEG conversion)
       ctx.fillStyle = '#ffffff';
@@ -167,8 +170,9 @@ export async function compressExistingImage(
 
       const compressedSizeKB = ((compressedDataUrl.length * 3) / 4 / 1024).toFixed(2);
       const ratio = ((parseFloat(compressedSizeKB) / parseFloat(originalSizeKB)) * 100).toFixed(1);
+      const savedKB = (parseFloat(originalSizeKB) - parseFloat(compressedSizeKB)).toFixed(2);
       console.log(`[重新壓縮] 壓縮後大小: ${compressedSizeKB} KB (${ratio}% of original)`);
-      console.log(`[重新壓縮] 節省空間: ${(parseFloat(originalSizeKB) - parseFloat(compressedSizeKB)).toFixed(2)} KB`);
+      console.log(`[重新壓縮] ✅ 節省空間: ${savedKB} KB`);
 
       resolve(compressedDataUrl);
     };
@@ -189,14 +193,19 @@ function hasTransparency(ctx: CanvasRenderingContext2D, width: number, height: n
     const imageData = ctx.getImageData(0, 0, width, height);
     const data = imageData.data;
 
-    // Check alpha channel of some pixels (sampling for performance)
-    for (let i = 3; i < data.length; i += 400) {
+    // Check ALL pixels' alpha channel (not just sampling)
+    // This ensures we don't miss any transparent pixels
+    for (let i = 3; i < data.length; i += 4) {
       if (data[i] < 255) {
+        console.log(`[透明度檢測] 發現透明像素 at pixel ${i/4}, alpha=${data[i]}`);
         return true;
       }
     }
+
+    console.log(`[透明度檢測] 無透明像素，可以轉換為 JPEG`);
     return false;
   } catch (e) {
+    console.warn('[透明度檢測] 檢測失敗，保守處理為有透明度:', e);
     // If we can't check, assume it has transparency to be safe
     return true;
   }
