@@ -65,22 +65,18 @@ export const StickerItemCard: React.FC<StickerItemCardProps> = ({ item, index, i
     }
   };
 
-  const handleCardClick = (e: React.MouseEvent) => {
-    // If clicking the input or the name field, ignore selection
-    const target = e.target as HTMLElement;
-    if (target.tagName === 'INPUT') return;
-
-    // Select the card for swapping
+  const handleSwapClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent any parent handlers
     onSelect(item.id);
   };
 
   const triggerUpload = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card selection when clicking upload
+    e.stopPropagation();
     fileInputRef.current?.click();
   };
 
   const handleDelete = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card selection when clicking delete
+    e.stopPropagation();
     if (window.confirm('確定要刪除這張圖片嗎？')) {
       onUpdate(item.id, { imageUrl: undefined });
     }
@@ -88,8 +84,7 @@ export const StickerItemCard: React.FC<StickerItemCardProps> = ({ item, index, i
 
   return (
     <div
-      onClick={handleCardClick}
-      className={`group relative p-4 transition-all duration-500 cursor-pointer ${isSelected
+      className={`group relative p-4 transition-all duration-500 ${isSelected
           ? 'bg-white shadow-[0_4px_20px_rgba(125,116,137,0.1)] transform -translate-y-1'
           : 'bg-transparent hover:bg-white/50'
         }`}
@@ -106,9 +101,21 @@ export const StickerItemCard: React.FC<StickerItemCardProps> = ({ item, index, i
           NO. {(index + 1).toString().padStart(2, '0')}
         </div>
 
-        {/* Selection Indicator */}
-        <div className={`w-2 h-2 rounded-full transition-all duration-500 ${isSelected ? 'bg-[#7D7489]' : 'bg-[#E5E0D8] opacity-0 group-hover:opacity-50'
-          }`}></div>
+        {/* Swap Button */}
+        <button
+          onClick={handleSwapClick}
+          className={`group/swap transition-all duration-300 p-1.5 rounded-full ${
+            isSelected
+              ? 'bg-[#7D7489] text-white'
+              : 'bg-[#E5E0D8] text-[#9F97A8] hover:bg-[#7D7489] hover:text-white opacity-0 group-hover:opacity-100'
+          }`}
+          title={isSelected ? '取消選擇' : '點擊選擇以交換位置'}
+        >
+          <svg width="12" height="12" viewBox="0 0 15 15" fill="none">
+            <path d="M8.84182 3.13514C9.04327 3.32401 9.05348 3.64042 8.86462 3.84188L5.43521 7.49991L8.86462 11.1579C9.05348 11.3594 9.04327 11.6758 8.84182 11.8647C8.64036 12.0535 8.32394 12.0433 8.13508 11.8419L4.38508 7.84188C4.20477 7.64955 4.20477 7.35027 4.38508 7.15794L8.13508 3.15794C8.32394 2.95648 8.64036 2.94628 8.84182 3.13514Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"/>
+            <path d="M6.15819 3.13514C6.35964 2.94628 6.67606 2.95648 6.86492 3.15794L10.6149 7.15794C10.7952 7.35027 10.7952 7.64955 10.6149 7.84188L6.86492 11.8419C6.67606 12.0433 6.35964 12.0535 6.15819 11.8647C5.95673 11.6758 5.94652 11.3594 6.13538 11.1579L9.56479 7.49991L6.13538 3.84188C5.94652 3.64042 5.95673 3.32401 6.15819 3.13514Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"/>
+          </svg>
+        </button>
       </div>
 
       <div
