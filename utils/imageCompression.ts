@@ -44,16 +44,17 @@ export async function compressImage(
           return;
         }
 
-        // Draw resized image
+        // Fill with page background color (#FDFBF7 - Warm Paper)
+        // This matches the website background for seamless integration
+        ctx.fillStyle = '#FDFBF7';
+        ctx.fillRect(0, 0, width, height);
+
+        // Draw image on top of background
         ctx.drawImage(img, 0, 0, width, height);
 
-        // Convert to base64 with compression
-        // Use JPEG for photos, keep PNG for images with transparency
-        const mimeType = file.type === 'image/png' && hasTransparency(ctx, width, height)
-          ? 'image/png'
-          : 'image/jpeg';
-
-        console.log(`[壓縮] 輸出格式: ${mimeType}`);
+        // Always convert to JPEG for better compression
+        const mimeType = 'image/jpeg';
+        console.log(`[壓縮] 輸出格式: ${mimeType} (背景色: #FDFBF7)`);
 
         const compressedDataUrl = canvas.toDataURL(mimeType, quality);
 
@@ -125,45 +126,21 @@ export async function compressExistingImage(
         return;
       }
 
-      // Draw image first to check transparency
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // Check if original image is PNG (likely has transparency)
+      // Check if original image is PNG
       const isPNG = dataUrl.startsWith('data:image/png');
-
       if (isPNG) {
-        console.log(`[重新壓縮] 原始格式: PNG，檢查透明度...`);
-        // Check if image actually has transparency
-        const hasAlpha = hasTransparency(ctx, width, height);
-
-        if (hasAlpha) {
-          // Keep as PNG to preserve transparency
-          console.log(`[重新壓縮] 輸出格式: PNG (保留透明度)`);
-          const compressedDataUrl = canvas.toDataURL('image/png', quality);
-
-          const compressedSizeKB = ((compressedDataUrl.length * 3) / 4 / 1024).toFixed(2);
-          const ratio = ((parseFloat(compressedSizeKB) / parseFloat(originalSizeKB)) * 100).toFixed(1);
-          console.log(`[重新壓縮] 壓縮後大小: ${compressedSizeKB} KB (${ratio}% of original)`);
-          console.log(`[重新壓縮] ⚠️ PNG 無損格式，壓縮效果有限`);
-
-          resolve(compressedDataUrl);
-          return;
-        }
-
-        // No transparency, convert to JPEG for better compression
-        console.log(`[重新壓縮] PNG 無透明度，轉換為 JPEG 以獲得更好壓縮`);
-        // Clear and redraw with white background
-        ctx.clearRect(0, 0, width, height);
+        console.log(`[重新壓縮] 原始格式: PNG，強制轉換為 JPEG 以壓縮`);
       }
 
-      console.log(`[重新壓縮] 輸出格式: JPEG (quality: ${quality})`);
-
-      // Fill with white background before drawing (for JPEG conversion)
-      ctx.fillStyle = '#ffffff';
+      // Fill with page background color (#FDFBF7 - Warm Paper)
+      // This matches the website background for seamless integration
+      ctx.fillStyle = '#FDFBF7';
       ctx.fillRect(0, 0, width, height);
 
-      // Draw image
+      // Draw image on top of background
       ctx.drawImage(img, 0, 0, width, height);
+
+      console.log(`[重新壓縮] 輸出格式: JPEG (quality: ${quality}, 背景色: #FDFBF7)`);
 
       // Convert to JPEG with compression
       const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
@@ -185,28 +162,6 @@ export async function compressExistingImage(
   });
 }
 
-/**
- * Check if image has transparency
- */
-function hasTransparency(ctx: CanvasRenderingContext2D, width: number, height: number): boolean {
-  try {
-    const imageData = ctx.getImageData(0, 0, width, height);
-    const data = imageData.data;
-
-    // Check ALL pixels' alpha channel (not just sampling)
-    // This ensures we don't miss any transparent pixels
-    for (let i = 3; i < data.length; i += 4) {
-      if (data[i] < 255) {
-        console.log(`[透明度檢測] 發現透明像素 at pixel ${i/4}, alpha=${data[i]}`);
-        return true;
-      }
-    }
-
-    console.log(`[透明度檢測] 無透明像素，可以轉換為 JPEG`);
-    return false;
-  } catch (e) {
-    console.warn('[透明度檢測] 檢測失敗，保守處理為有透明度:', e);
-    // If we can't check, assume it has transparency to be safe
-    return true;
-  }
-}
+// Note: Transparency checking function removed
+// All images are now converted to JPEG with page background color (#FDFBF7)
+// for optimal compression while maintaining visual consistency with the page
