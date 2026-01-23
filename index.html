@@ -85,16 +85,45 @@
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
 
-    <!-- Service Worker Registration -->
+    <!-- Service Worker Registration with Auto-Update -->
     <script>
       if ('serviceWorker' in navigator) {
+        let refreshing = false;
+
+        // Detect when new service worker is ready
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          if (refreshing) return;
+          refreshing = true;
+          console.log('[SW] New version detected, reloading page...');
+          window.location.reload();
+        });
+
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/Sticker-Management/sw.js')
             .then((registration) => {
-              console.log('SW registered:', registration);
+              console.log('[SW] Registered:', registration);
+
+              // Check for updates every 60 seconds
+              setInterval(() => {
+                registration.update();
+              }, 60000);
+
+              // Listen for updates
+              registration.addEventListener('updatefound', () => {
+                const newWorker = registration.installing;
+                console.log('[SW] Update found, installing...');
+
+                newWorker.addEventListener('statechange', () => {
+                  if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                    console.log('[SW] New version installed');
+                    // Tell the new service worker to take control immediately
+                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                  }
+                });
+              });
             })
             .catch((error) => {
-              console.log('SW registration failed:', error);
+              console.log('[SW] Registration failed:', error);
             });
         });
       }
