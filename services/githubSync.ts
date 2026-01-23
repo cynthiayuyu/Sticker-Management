@@ -190,6 +190,11 @@ export class GitHubSyncService {
         return [];
       }
 
+      // Check if content is HTML instead of JSON (common error)
+      if (content.trim().startsWith('<!DOCTYPE') || content.trim().startsWith('<html')) {
+        throw new Error('雲端資料格式錯誤（保存了 HTML 而不是 JSON）。請刪除雲端的 Gist 並重新上傳。');
+      }
+
       // Check content size
       const sizeInBytes = new Blob([content]).size;
       const sizeInMB = sizeInBytes / (1024 * 1024);
