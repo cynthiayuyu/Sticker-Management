@@ -168,12 +168,9 @@ export class GitHubSyncService {
         console.log('Content was truncated, fetching from raw_url:', file.raw_url);
 
         // Fetch full content from raw_url
-        const rawResponse = await fetch(file.raw_url, {
-          headers: {
-            'Authorization': `Bearer ${this.token}`,
-            'Accept': 'application/vnd.github.v3+json'
-          }
-        });
+        // Note: Do NOT include Authorization header for raw_url to avoid CORS issues
+        // The raw_url itself contains the necessary access credentials
+        const rawResponse = await fetch(file.raw_url);
 
         if (!rawResponse.ok) {
           throw new Error(`無法獲取完整內容 (HTTP ${rawResponse.status})`);
