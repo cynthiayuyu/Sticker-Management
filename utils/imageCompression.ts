@@ -13,6 +13,10 @@ export async function compressImage(
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
+    // Log original file size
+    const originalSizeKB = (file.size / 1024).toFixed(2);
+    console.log(`[壓縮] 原始檔案: ${file.name}, 大小: ${originalSizeKB} KB`);
+
     reader.onload = (e) => {
       const img = new Image();
 
@@ -21,9 +25,12 @@ export async function compressImage(
         let width = img.width;
         let height = img.height;
 
+        console.log(`[壓縮] 原始尺寸: ${width} x ${height}`);
+
         if (width > maxWidth) {
           height = (height * maxWidth) / width;
           width = maxWidth;
+          console.log(`[壓縮] 調整後尺寸: ${width} x ${height}`);
         }
 
         // Create canvas for resizing
@@ -46,7 +53,16 @@ export async function compressImage(
           ? 'image/png'
           : 'image/jpeg';
 
+        console.log(`[壓縮] 輸出格式: ${mimeType}`);
+
         const compressedDataUrl = canvas.toDataURL(mimeType, quality);
+
+        // Calculate compressed size
+        const compressedSizeKB = ((compressedDataUrl.length * 3) / 4 / 1024).toFixed(2);
+        const ratio = ((parseFloat(compressedSizeKB) / parseFloat(originalSizeKB)) * 100).toFixed(1);
+        console.log(`[壓縮] 壓縮後大小: ${compressedSizeKB} KB (${ratio}% of original)`);
+        console.log(`[壓縮] 節省空間: ${(parseFloat(originalSizeKB) - parseFloat(compressedSizeKB)).toFixed(2)} KB`);
+
         resolve(compressedDataUrl);
       };
 
@@ -80,15 +96,22 @@ export async function compressExistingImage(
   return new Promise((resolve, reject) => {
     const img = new Image();
 
+    // Calculate original size
+    const originalSizeKB = ((dataUrl.length * 3) / 4 / 1024).toFixed(2);
+    console.log(`[重新壓縮] 原始大小: ${originalSizeKB} KB`);
+
     img.onload = () => {
       // Calculate new dimensions while maintaining aspect ratio
       let width = img.width;
       let height = img.height;
 
+      console.log(`[重新壓縮] 原始尺寸: ${width} x ${height}`);
+
       const shouldResize = width > maxWidth;
       if (shouldResize) {
         height = (height * maxWidth) / width;
         width = maxWidth;
+        console.log(`[重新壓縮] 調整後尺寸: ${width} x ${height}`);
       }
 
       // Create canvas for resizing
@@ -114,7 +137,13 @@ export async function compressExistingImage(
 
         if (hasAlpha) {
           // Keep as PNG to preserve transparency
+          console.log(`[重新壓縮] 輸出格式: PNG (保留透明度)`);
           const compressedDataUrl = canvas.toDataURL('image/png', quality);
+
+          const compressedSizeKB = ((compressedDataUrl.length * 3) / 4 / 1024).toFixed(2);
+          const ratio = ((parseFloat(compressedSizeKB) / parseFloat(originalSizeKB)) * 100).toFixed(1);
+          console.log(`[重新壓縮] 壓縮後大小: ${compressedSizeKB} KB (${ratio}% of original)`);
+
           resolve(compressedDataUrl);
           return;
         }
@@ -123,6 +152,8 @@ export async function compressExistingImage(
         // Clear and redraw with white background
         ctx.clearRect(0, 0, width, height);
       }
+
+      console.log(`[重新壓縮] 輸出格式: JPEG`);
 
       // Fill with white background before drawing (for JPEG conversion)
       ctx.fillStyle = '#ffffff';
@@ -133,6 +164,12 @@ export async function compressExistingImage(
 
       // Convert to JPEG with compression
       const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+
+      const compressedSizeKB = ((compressedDataUrl.length * 3) / 4 / 1024).toFixed(2);
+      const ratio = ((parseFloat(compressedSizeKB) / parseFloat(originalSizeKB)) * 100).toFixed(1);
+      console.log(`[重新壓縮] 壓縮後大小: ${compressedSizeKB} KB (${ratio}% of original)`);
+      console.log(`[重新壓縮] 節省空間: ${(parseFloat(originalSizeKB) - parseFloat(compressedSizeKB)).toFixed(2)} KB`);
+
       resolve(compressedDataUrl);
     };
 
