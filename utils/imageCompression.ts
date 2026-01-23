@@ -85,25 +85,11 @@ export async function compressExistingImage(
       let width = img.width;
       let height = img.height;
 
-      // Only compress if image is larger than maxWidth
-      if (width <= maxWidth) {
-        // Still convert to JPEG for better compression
-        const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) {
-          reject(new Error('Failed to get canvas context'));
-          return;
-        }
-        ctx.drawImage(img, 0, 0, width, height);
-        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
-        resolve(compressedDataUrl);
-        return;
+      const shouldResize = width > maxWidth;
+      if (shouldResize) {
+        height = (height * maxWidth) / width;
+        width = maxWidth;
       }
-
-      height = (height * maxWidth) / width;
-      width = maxWidth;
 
       // Create canvas for resizing
       const canvas = document.createElement('canvas');
@@ -116,7 +102,33 @@ export async function compressExistingImage(
         return;
       }
 
-      // Draw resized image
+      // Check if original image is PNG (likely has transparency)
+      const isPNG = dataUrl.startsWith('data:image/png');
+
+      // If converting from PNG to JPEG, fill with white background
+      // Otherwise transparent areas become black
+      if (isPNG) {
+        // Check if image actually has transparency
+        ctx.drawImage(img, 0, 0, width, height);
+        const hasAlpha = hasTransparency(ctx, width, height);
+
+        if (hasAlpha) {
+          // Keep as PNG to preserve transparency
+          const compressedDataUrl = canvas.toDataURL('image/png', quality);
+          resolve(compressedDataUrl);
+          return;
+        }
+
+        // No transparency, can safely convert to JPEG with white background
+        // Clear and redraw with white background
+        ctx.clearRect(0, 0, width, height);
+      }
+
+      // Fill with white background before drawing (for JPEG conversion)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+
+      // Draw image
       ctx.drawImage(img, 0, 0, width, height);
 
       // Convert to JPEG with compression
