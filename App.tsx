@@ -211,6 +211,26 @@ const App: React.FC = () => {
     });
   }, [sets, filterStatus, filterType, filterSeries]);
 
+  // Calculate total data size
+  const totalDataSize = useMemo(() => {
+    let totalBytes = 0;
+    let imageCount = 0;
+
+    sets.forEach(set => {
+      set.items.forEach(item => {
+        if (item.imageUrl) {
+          // Calculate size from base64 data URL
+          // base64 encoding adds ~33% overhead, so actual data = length * 3/4
+          totalBytes += (item.imageUrl.length * 3) / 4;
+          imageCount++;
+        }
+      });
+    });
+
+    const totalMB = totalBytes / (1024 * 1024);
+    return { totalMB: totalMB.toFixed(2), imageCount };
+  }, [sets]);
+
   const handleCreateNew = () => {
     const id = Date.now().toString();
 
@@ -692,6 +712,13 @@ const App: React.FC = () => {
                 <Button onClick={handleImportClick} variant="ghost" size="sm" className="text-[10px] md:text-xs text-[#9F97A8] hover:text-[#7D7489]">
                   匯入
                 </Button>
+                <div className="h-3 w-px bg-[#E5E0D8] hidden md:block"></div>
+                <div
+                  className="text-[10px] text-[#9F97A8] font-cormorant tracking-wider"
+                  title={`總共 ${totalDataSize.imageCount} 張圖片`}
+                >
+                  <span className="hidden md:inline">資料：</span>{totalDataSize.totalMB} MB
+                </div>
               </div>
 
               {/* GitHub Sync */}
