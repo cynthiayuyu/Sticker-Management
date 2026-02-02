@@ -45,9 +45,6 @@ const CollectionCard = ({
   set,
   onClick,
   onDelete,
-  onSwapClick,
-  isSwapMode,
-  isSelectedForSwap,
   getStatusLabel,
   getStatusColor
 }: any) => {
@@ -55,34 +52,15 @@ const CollectionCard = ({
   const [isDeleting, setIsDeleting] = React.useState(false);
 
   const handleCardClick = (e: React.MouseEvent) => {
-    // Safety check: if the click originated from a button, ignore it here
-    // This acts as a backup even if stopPropagation fails
     if ((e.target as HTMLElement).closest('button')) return;
-
-    // If in swap mode, clicking the body should trigger swap
-    if (isSwapMode) {
-      onSwapClick(set.id);
-    } else {
-      onClick(set.id);
-    }
+    onClick(set.id);
   };
 
   return (
     <div
-      className={`bg-white p-8 border group transition-all duration-500 cursor-pointer relative flex flex-col h-full
-        ${isSelectedForSwap
-          ? 'border-[#7D7489] shadow-[0_10px_40px_rgba(125,116,137,0.15)] transform -translate-y-1'
-          : isSwapMode
-            ? 'border-[#F3F0EB] hover:border-[#7D7489] opacity-80 hover:opacity-100'
-            : 'border-[#F3F0EB] hover:border-[#7D7489] hover:shadow-[0_10px_40px_rgba(125,116,137,0.08)]'
-        }
-      `}
+      className="bg-white p-8 border group transition-all duration-500 cursor-pointer relative flex flex-col h-full border-[#F3F0EB] hover:border-[#7D7489] hover:shadow-[0_10px_40px_rgba(125,116,137,0.08)]"
       onClick={handleCardClick}
     >
-      {/* Swap Selection Indicator Overlay */}
-      {isSwapMode && !isSelectedForSwap && (
-        <div className="absolute inset-0 bg-[#7D7489] opacity-0 group-hover:opacity-5 pointer-events-none transition-opacity"></div>
-      )}
 
       <div className="flex justify-between items-start mb-8">
         <div className="flex-1 pr-6">
@@ -106,23 +84,6 @@ const CollectionCard = ({
 
         {/* Actions Container */}
         <div className="flex flex-col items-end gap-3 z-30 relative shrink-0">
-          {/* Swap Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onSwapClick(set.id);
-            }}
-            className={`p-2 transition-all duration-300 rounded-full hover:bg-[#F3F0EB] ${isSelectedForSwap ? 'text-[#7D7489] rotate-180 bg-[#F3F0EB]' : 'text-[#F3F0EB] hover:text-[#9F97A8]'}`}
-            title="Swap / Reorder"
-          >
-            <svg width="16" height="16" viewBox="0 0 15 15" fill="none">
-              <path d="M7.5 2C7.77614 2 8 2.22386 8 2.5V12.5C8 12.7761 7.77614 13 7.5 13C7.22386 13 7 12.7761 7 12.5V2.5C7 2.22386 7.22386 2 7.5 2ZM2.5 5.5C2.5 5.22386 2.72386 5 3 5H12C12.2761 5 12.5 5.22386 12.5 5.5C12.5 5.77614 12.2761 6 12 6H3C2.72386 6 2.5 5.77614 2.5 5.5ZM3 9.5C2.72386 9.5 2.5 9.72386 2.5 10C2.5 10.2761 2.72386 10.5 3 10.5H12C12.2761 10.5 12.5 10.2761 12.5 10C12.5 9.72386 12.2761 9.5 12 9.5H3Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"></path>
-            </svg>
-          </button>
-
-          {/* Delete Button */}
           {/* Delete Button with 2-step confirmation */}
           <button
             type="button"
@@ -170,7 +131,7 @@ const CollectionCard = ({
         <div className="flex justify-between items-center text-[10px] font-cormorant text-[#9F97A8] uppercase tracking-[0.2em] pt-5 border-t border-[#F9F8F6] group-hover:border-[#E6E4E9]">
           <span>{set.itemCount} Éléments</span>
           <span className="text-[#7D7489] opacity-0 group-hover:opacity-100 transition-all duration-500 transform translate-x-2 group-hover:translate-x-0">
-            {isSwapMode ? (isSelectedForSwap ? 'Selected' : 'Swap Here') : 'Ouvrir'}
+            Ouvrir
           </span>
         </div>
       </div>
@@ -222,9 +183,6 @@ const App: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<CollectionStatus | 'ALL'>('ALL');
   const [filterType, setFilterType] = useState<'ALL' | 'Sticker' | 'Emoji'>('ALL');
   const [filterSeries, setFilterSeries] = useState<string>('ALL');
-
-  // New state for click-to-swap
-  const [swapSourceId, setSwapSourceId] = useState<string | null>(null);
 
   // Drag mode for collections
   const [isCollectionDragMode, setIsCollectionDragMode] = useState(false);
@@ -339,49 +297,8 @@ const App: React.FC = () => {
   };
 
   const handleDeleteSet = async (id: string) => {
-    // Confirm dialog is handled inline by the button now
     await deleteStickerSet(id);
     setSets(prev => prev.filter(s => s.id !== id));
-    if (swapSourceId === id) setSwapSourceId(null);
-  };
-
-  const handleSwapClick = async (id: string) => {
-    if (swapSourceId === null) {
-      // Select for swap
-      setSwapSourceId(id);
-    } else if (swapSourceId === id) {
-      // Deselect
-      setSwapSourceId(null);
-    } else {
-      // Perform Swap
-      const indexA = sets.findIndex(s => s.id === swapSourceId);
-      const indexB = sets.findIndex(s => s.id === id);
-
-      if (indexA !== -1 && indexB !== -1) {
-        const newSets = [...sets];
-
-        // Swap logic using orders works best if we ensure orders are unique/valid
-        // Simple swap of order property:
-        const orderA = newSets[indexA].order || 0;
-        const orderB = newSets[indexB].order || 0;
-
-        newSets[indexA] = { ...newSets[indexA], order: orderB };
-        newSets[indexB] = { ...newSets[indexB], order: orderA };
-
-        // Re-sort the array based on order
-        const sortedSets = newSets.sort((a, b) => (a.order || 0) - (b.order || 0));
-
-        // Save to DB with proper error handling
-        try {
-          await saveStickerSets(sortedSets);
-          setSets(sortedSets);
-        } catch (err) {
-          console.error("Failed to save swap", err);
-          alert("交換位置儲存失敗，請重試");
-        }
-      }
-      setSwapSourceId(null);
-    }
   };
 
   const handleCollectionDragStart = (event: DragStartEvent) => {
@@ -767,11 +684,6 @@ const App: React.FC = () => {
                   </div>
                 </div>
               )}
-              {swapSourceId && !isCompressing && (
-                <span className="text-xs text-[#7D7489] font-fangsong animate-pulse">
-                  請選擇另一個項目進行交換...
-                </span>
-              )}
             </div>
 
             {/* Action Buttons - 手機上堆疊 */}
@@ -901,9 +813,6 @@ const App: React.FC = () => {
                   isDragMode={isCollectionDragMode}
                   onClick={(id: string) => { if (!isCollectionDragMode) { setActiveSetId(id); setView('EDITOR'); } }}
                   onDelete={handleDeleteSet}
-                  onSwapClick={handleSwapClick}
-                  isSwapMode={swapSourceId !== null}
-                  isSelectedForSwap={swapSourceId === set.id}
                   getStatusLabel={getStatusLabel}
                   getStatusColor={getStatusColor}
                 />
@@ -928,9 +837,6 @@ const App: React.FC = () => {
                       set={dragSet}
                       onClick={() => {}}
                       onDelete={() => {}}
-                      onSwapClick={() => {}}
-                      isSwapMode={false}
-                      isSelectedForSwap={false}
                       getStatusLabel={getStatusLabel}
                       getStatusColor={getStatusColor}
                     />
