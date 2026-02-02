@@ -64,10 +64,8 @@ const SortableItemCard = ({
       <StickerItemCard
         item={item}
         index={index}
-        isSelected={false}
         isDragMode={isDragMode}
         dragListeners={isDragMode ? listeners : undefined}
-        onSelect={() => {}}
         onUpdate={onUpdate}
       />
     </div>
@@ -330,9 +328,6 @@ export const StickerEditor: React.FC<StickerEditorProps> = ({ set, allSeries, on
                 <StickerItemCard
                   item={activeDragItem}
                   index={activeDragIndex}
-                  isSelected={false}
-                  isDragMode={false}
-                  onSelect={() => {}}
                   onUpdate={() => {}}
                 />
               </div>
