@@ -6,6 +6,24 @@ import { Button } from './components/Button';
 import { getAllStickerSets, saveStickerSet, saveStickerSets, deleteStickerSet, clearAllStickerSets } from './services/storage';
 import { compressExistingImage } from './utils/imageCompression';
 import { githubSync } from './services/githubSync';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  rectSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // Sorting helper for Series: English (A-Z) then Chinese
 const sortSeries = (a: string, b: string) => {
@@ -160,6 +178,42 @@ const CollectionCard = ({
   );
 };
 
+// Sortable wrapper for CollectionCard
+const SortableCollectionCard = ({ set, isDragMode, ...props }: any) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: set.id, disabled: !isDragMode });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+    zIndex: isDragging ? 50 : 'auto',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      {isDragMode && (
+        <div
+          {...listeners}
+          className="flex items-center justify-center gap-2 mb-2 py-2 cursor-grab active:cursor-grabbing bg-[#F3F0EB] hover:bg-[#E6E4E9] rounded-sm transition-colors"
+        >
+          <svg width="14" height="14" viewBox="0 0 15 15" fill="none" className="text-[#9F97A8]">
+            <path d="M5.5 4.625C6.12132 4.625 6.625 4.12132 6.625 3.5C6.625 2.87868 6.12132 2.375 5.5 2.375C4.87868 2.375 4.375 2.87868 4.375 3.5C4.375 4.12132 4.87868 4.625 5.5 4.625ZM9.5 4.625C10.1213 4.625 10.625 4.12132 10.625 3.5C10.625 2.87868 10.1213 2.375 9.5 2.375C8.87868 2.375 8.375 2.87868 8.375 3.5C8.375 4.12132 8.87868 4.625 9.5 4.625ZM6.625 7.5C6.625 8.12132 6.12132 8.625 5.5 8.625C4.87868 8.625 4.375 8.12132 4.375 7.5C4.375 6.87868 4.87868 6.375 5.5 6.375C6.12132 6.375 6.625 6.87868 6.625 7.5ZM9.5 8.625C10.1213 8.625 10.625 8.12132 10.625 7.5C10.625 6.87868 10.1213 6.375 9.5 6.375C8.87868 6.375 8.375 6.87868 8.375 7.5C8.375 8.12132 8.87868 8.625 9.5 8.625ZM6.625 11.5C6.625 12.1213 6.12132 12.625 5.5 12.625C4.87868 12.625 4.375 12.1213 4.375 11.5C4.375 10.8787 4.87868 10.375 5.5 10.375C6.12132 10.375 6.625 10.8787 6.625 11.5ZM9.5 12.625C10.1213 12.625 10.625 12.1213 10.625 11.5C10.625 10.8787 10.1213 10.375 9.5 10.375C8.87868 10.375 8.375 10.8787 8.375 11.5C8.375 12.1213 8.87868 12.625 9.5 12.625Z" fill="currentColor" fillRule="evenodd" clipRule="evenodd"/>
+          </svg>
+          <span className="text-[10px] font-fangsong text-[#9F97A8]">拖曳排序</span>
+        </div>
+      )}
+      <CollectionCard set={set} {...props} />
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const [sets, setSets] = useState<StickerSet[]>([]);
   const [view, setView] = useState<ViewState>('LIST');
@@ -171,6 +225,15 @@ const App: React.FC = () => {
 
   // New state for click-to-swap
   const [swapSourceId, setSwapSourceId] = useState<string | null>(null);
+
+  // Drag mode for collections
+  const [isCollectionDragMode, setIsCollectionDragMode] = useState(false);
+  const [activeCollectionDragId, setActiveCollectionDragId] = useState<string | null>(null);
+
+  const collectionSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  );
 
   // Compression state
   const [isCompressing, setIsCompressing] = useState(false);
@@ -318,6 +381,33 @@ const App: React.FC = () => {
         }
       }
       setSwapSourceId(null);
+    }
+  };
+
+  const handleCollectionDragStart = (event: DragStartEvent) => {
+    setActiveCollectionDragId(event.active.id as string);
+  };
+
+  const handleCollectionDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveCollectionDragId(null);
+
+    if (over && active.id !== over.id) {
+      const oldIndex = sets.findIndex(s => s.id === active.id);
+      const newIndex = sets.findIndex(s => s.id === over.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reordered = arrayMove(sets, oldIndex, newIndex);
+        // Reassign order values
+        const withOrders = reordered.map((s, idx) => ({ ...s, order: idx }));
+        try {
+          await saveStickerSets(withOrders);
+          setSets(withOrders);
+        } catch (err) {
+          console.error("Failed to save drag reorder", err);
+          alert("排序儲存失敗，請重試");
+        }
+      }
     }
   };
 
@@ -776,6 +866,18 @@ const App: React.FC = () => {
                 )}
               </div>
 
+              {/* Drag Reorder Toggle */}
+              <button
+                onClick={() => setIsCollectionDragMode(prev => !prev)}
+                className={`px-3 py-1.5 text-[10px] md:text-xs font-fangsong tracking-wider transition-all duration-300 border rounded-sm whitespace-nowrap ${
+                  isCollectionDragMode
+                    ? 'bg-[#7D7489] text-white border-[#7D7489]'
+                    : 'bg-transparent text-[#9F97A8] border-[#E5E0D8] hover:border-[#7D7489] hover:text-[#7D7489]'
+                }`}
+              >
+                {isCollectionDragMode ? '完成排序' : '拖曳排序'}
+              </button>
+
               {/* Create Button */}
               <Button onClick={handleCreateNew} variant="outline" className="tracking-[0.2em] text-xs md:text-sm hover:bg-[#F3F0F5] whitespace-nowrap">
                 + Créer
@@ -784,28 +886,60 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-16">
-          {filteredSets.map(set => (
-            <CollectionCard
-              key={set.id}
-              set={set}
-              onClick={(id: string) => { setActiveSetId(id); setView('EDITOR'); }}
-              onDelete={handleDeleteSet}
-              onSwapClick={handleSwapClick}
-              isSwapMode={swapSourceId !== null}
-              isSelectedForSwap={swapSourceId === set.id}
-              getStatusLabel={getStatusLabel}
-              getStatusColor={getStatusColor}
-            />
-          ))}
+        <DndContext
+          sensors={collectionSensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleCollectionDragStart}
+          onDragEnd={handleCollectionDragEnd}
+        >
+          <SortableContext items={filteredSets.map(s => s.id)} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-16">
+              {filteredSets.map(set => (
+                <SortableCollectionCard
+                  key={set.id}
+                  set={set}
+                  isDragMode={isCollectionDragMode}
+                  onClick={(id: string) => { if (!isCollectionDragMode) { setActiveSetId(id); setView('EDITOR'); } }}
+                  onDelete={handleDeleteSet}
+                  onSwapClick={handleSwapClick}
+                  isSwapMode={swapSourceId !== null}
+                  isSelectedForSwap={swapSourceId === set.id}
+                  getStatusLabel={getStatusLabel}
+                  getStatusColor={getStatusColor}
+                />
+              ))}
 
-          {filteredSets.length === 0 && (
-            <div className="col-span-full py-40 text-center">
-              <div className="w-16 h-px bg-[#E5E0D8] mx-auto mb-6"></div>
-              <p className="font-playfair italic text-[#D8D2CB] text-3xl">La collection est vide.</p>
+              {filteredSets.length === 0 && (
+                <div className="col-span-full py-40 text-center">
+                  <div className="w-16 h-px bg-[#E5E0D8] mx-auto mb-6"></div>
+                  <p className="font-playfair italic text-[#D8D2CB] text-3xl">La collection est vide.</p>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </SortableContext>
+
+          <DragOverlay>
+            {activeCollectionDragId ? (
+              <div className="opacity-80 rotate-1 scale-[1.02] shadow-2xl max-w-sm">
+                {(() => {
+                  const dragSet = sets.find(s => s.id === activeCollectionDragId);
+                  return dragSet ? (
+                    <CollectionCard
+                      set={dragSet}
+                      onClick={() => {}}
+                      onDelete={() => {}}
+                      onSwapClick={() => {}}
+                      isSwapMode={false}
+                      isSelectedForSwap={false}
+                      getStatusLabel={getStatusLabel}
+                      getStatusColor={getStatusColor}
+                    />
+                  ) : null;
+                })()}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </main>
 
       <footer className="mt-32 border-t border-[#E5E0D8] py-12 text-center bg-[#FDFBF7]">

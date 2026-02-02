@@ -3,6 +3,24 @@ import React, { useState, useCallback } from 'react';
 import { StickerSet, StickerItem } from '../types';
 import { StickerItemCard } from './StickerItemCard';
 import { Button } from './Button';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  rectSortingStrategy,
+  useSortable,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 interface StickerEditorProps {
   set: StickerSet;
@@ -13,10 +31,59 @@ interface StickerEditorProps {
 
 const COUNT_OPTIONS = [8, 16, 24, 32, 40];
 
+// Sortable wrapper for StickerItemCard
+const SortableItemCard = ({
+  item,
+  index,
+  isDragMode,
+  onUpdate,
+}: {
+  item: StickerItem;
+  index: number;
+  isDragMode: boolean;
+  onUpdate: (id: string, updates: Partial<StickerItem>) => void;
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id, disabled: !isDragMode });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+    zIndex: isDragging ? 50 : 'auto',
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <StickerItemCard
+        item={item}
+        index={index}
+        isSelected={false}
+        isDragMode={isDragMode}
+        dragListeners={isDragMode ? listeners : undefined}
+        onSelect={() => {}}
+        onUpdate={onUpdate}
+      />
+    </div>
+  );
+};
+
 export const StickerEditor: React.FC<StickerEditorProps> = ({ set, allSeries, onSave, onBack }) => {
   const [editedSet, setEditedSet] = useState<StickerSet>({ ...set });
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDragMode, setIsDragMode] = useState(false);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+  );
 
   const handleUpdateItem = useCallback((id: string, updates: Partial<StickerItem>) => {
     setEditedSet(prev => ({
@@ -25,26 +92,20 @@ export const StickerEditor: React.FC<StickerEditorProps> = ({ set, allSeries, on
     }));
   }, []);
 
-  const handleItemClick = (id: string) => {
-    if (selectedItemId === null) {
-      setSelectedItemId(id);
-    } else if (selectedItemId === id) {
-      setSelectedItemId(null); // Deselect
-    } else {
-      // Swap items
-      setEditedSet(prev => {
-        const items = [...prev.items];
-        const indexA = items.findIndex(i => i.id === selectedItemId);
-        const indexB = items.findIndex(i => i.id === id);
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveDragId(event.active.id as string);
+  };
 
-        if (indexA !== -1 && indexB !== -1) {
-          const temp = items[indexA];
-          items[indexA] = items[indexB];
-          items[indexB] = temp;
-        }
-        return { ...prev, items };
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+
+    if (over && active.id !== over.id) {
+      setEditedSet(prev => {
+        const oldIndex = prev.items.findIndex(i => i.id === active.id);
+        const newIndex = prev.items.findIndex(i => i.id === over.id);
+        return { ...prev, items: arrayMove(prev.items, oldIndex, newIndex) };
       });
-      setSelectedItemId(null);
     }
   };
 
@@ -83,6 +144,9 @@ export const StickerEditor: React.FC<StickerEditorProps> = ({ set, allSeries, on
       window.open(editedSet.storeUrl, '_blank');
     }
   };
+
+  const activeDragItem = activeDragId ? editedSet.items.find(i => i.id === activeDragId) : null;
+  const activeDragIndex = activeDragId ? editedSet.items.findIndex(i => i.id === activeDragId) : -1;
 
   return (
     <div className="max-w-7xl mx-auto py-16 px-6 md:px-8 animate-in fade-in duration-1000">
@@ -217,8 +281,18 @@ export const StickerEditor: React.FC<StickerEditorProps> = ({ set, allSeries, on
 
           <div className="flex justify-end items-center gap-6 pt-8 border-t border-[#F3F0EB]">
             <div className="text-xs text-[#D8D2CB] italic font-cormorant mr-auto hidden md:block">
-              * Click two items to swap positions
+              {isDragMode ? '* 拖曳項目以調整順序' : '* 點擊排序按鈕啟用拖曳模式'}
             </div>
+            <button
+              onClick={() => setIsDragMode(prev => !prev)}
+              className={`px-4 py-2 text-xs font-fangsong tracking-wider transition-all duration-300 border rounded-sm ${
+                isDragMode
+                  ? 'bg-[#7D7489] text-white border-[#7D7489]'
+                  : 'bg-transparent text-[#9F97A8] border-[#E5E0D8] hover:border-[#7D7489] hover:text-[#7D7489]'
+              }`}
+            >
+              {isDragMode ? '完成排序' : '拖曳排序'}
+            </button>
             <Button onClick={handleSaveClick} variant="primary" disabled={isSaving}>
               {isSaving ? 'Enregistrement...' : 'Enregistrer'}
             </Button>
@@ -230,18 +304,41 @@ export const StickerEditor: React.FC<StickerEditorProps> = ({ set, allSeries, on
         {/* Visual Line */}
         <div className="absolute left-0 right-0 top-0 h-px bg-gradient-to-r from-transparent via-[#D8D2CB] to-transparent"></div>
 
-        <div className="pt-12 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-4 sm:gap-6">
-          {editedSet.items.map((item, index) => (
-            <StickerItemCard
-              key={item.id}
-              item={item}
-              index={index}
-              isSelected={selectedItemId === item.id}
-              onSelect={handleItemClick}
-              onUpdate={handleUpdateItem}
-            />
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={editedSet.items.map(i => i.id)} strategy={rectSortingStrategy}>
+            <div className="pt-12 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-8 gap-4 sm:gap-6">
+              {editedSet.items.map((item, index) => (
+                <SortableItemCard
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  isDragMode={isDragMode}
+                  onUpdate={handleUpdateItem}
+                />
+              ))}
+            </div>
+          </SortableContext>
+
+          <DragOverlay>
+            {activeDragItem ? (
+              <div className="opacity-80 rotate-3 scale-105 shadow-2xl">
+                <StickerItemCard
+                  item={activeDragItem}
+                  index={activeDragIndex}
+                  isSelected={false}
+                  isDragMode={false}
+                  onSelect={() => {}}
+                  onUpdate={() => {}}
+                />
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
     </div>
   );
